@@ -1,0 +1,28 @@
+[project]
+name = "stack-ttt"
+version = "0.1.0"
+description = "Study 4: test-time training (TTT) vs in-context learning (ICL) for STACK"
+requires-python = ">=3.11"
+dependencies = [
+    "stack-robustness",
+    "arc-stack==0.1.3",
+    "torch>=2.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv.sources]
+stack-robustness = { path = "..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:The 'future.infer_string' option is deprecated",
+    # arc-stack concatenates windows that repeat prompt cells
+    "ignore:Observation names are not unique",
+]
