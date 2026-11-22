@@ -91,9 +91,9 @@ def predict_double(model, cells, pools, double, genelist_path, panel, num_steps,
       raw    the generated cells' profile
       query  the query cells' own observed profile (no model), the floor STACK must beat
       diff   (with `reference`, rows of control cells) the observed query profile plus
-             generated-with-prompt minus generated-with-control-prompt, seeds paired. This
-             is the generated-control reference Cell-Eval uses; it cancels shifts STACK
-             applies whatever the prompt.
+             generated-with-prompt minus generated-with-control-prompt, seeds paired. It
+             cancels shifts STACK applies whatever the prompt (consistent with Cell-Eval's
+             predicted minus predicted control, if the predicted controls are generated).
     "<name>_one" keeps prompt A, query B (median over draws); "<name>" takes the median over
     draws within each order, then over both orders (swapping leaves the joint target unchanged).
     """

@@ -59,23 +59,31 @@ These were checked against arc-stack 0.1.3 and `Stack-Large-Aligned`:
 
 Run frozen on Norman's K562 cells, STACK shifts hundreds of genes away from the data
 whatever the prompt. This happens even when it only reconstructs fully observed control
-cells, with nothing masked or generated. In those control cells, MALAT1 drops from 4.6
-to 1.5 in log-normalized expression and H3F3A, HIST1H4C and H2AFZ go from about 2.9 to
-0.01, while HBG2 rises from 1.8 to 4.5. The top 1,000 genes carry 90% of the squared
-error. Mapping 713 renamed genes into the vocabulary through Ensembl IDs
-(`stack_robustness.genes.vocabulary_aliases`) does not change this. It reflects STACK's
-training data, not this pipeline.
+cells, with nothing masked or generated. In those cells, MALAT1 drops from 4.6 to 1.5 in
+log-normalized expression and H3F3A, HIST1H4C and H2AFZ go from about 2.9 to 0.01, while
+HBG2 rises from 1.8 to 4.5. The top 1,000 genes carry 90% of the squared error.
 
-Raw scoring charges that shift to STACK, and an adapter can "improve" just by learning it.
+What is known about the cause:
+- Genes whose vocabulary symbol HGNC has since renamed are 2.7% of the panel but carry
+  15.6% of the error, including every histone gene that collapses. Most of the error
+  (84%) is in genes with current symbols, such as MALAT1, the hemoglobins, B2M and ACTG1.
+- Mapping 713 renamed Norman genes into vocabulary slots they were missing from
+  (`stack_robustness.genes.vocabulary_aliases`) does not change it.
+- Neither this pipeline nor gene naming is ruled out. The next check is to reconstruct
+  Arc's own tutorial data (`Stack-DrugPBMC-Example`) through the same code.
+
+Raw scoring charges this shift to STACK, and an adapter can "improve" just by learning it.
 `norman_compare.py` therefore reports, side by side:
 - `*_raw`: the generated profile, scored as Eq. 1 specifies.
 - `*_diff`: the observed query profile, plus generation with the prompt minus generation
-  with a control prompt (seeds paired, separate control cells). This is the
-  generated-control reference Cell-Eval uses, and it cancels the shift.
+  with a control prompt (seeds paired, separate control cells). It cancels shifts STACK
+  applies whatever the prompt. It is consistent with Cell-Eval's predicted effect
+  (predicted minus predicted control) if the predicted controls are generated too.
+  Under diff scoring, report the margin over `query`.
 - `query`: the query cells unchanged, with no model. For a double this is B's own
   measured effect, which STACK should not get credit for.
-- `nulladapt_*`: one adapter trained only on control → control. TTT counts as working
-  only where it beats this.
+- `nulladapt_*`: one adapter trained only on control → control. It also learns "zero
+  effect", so it is a biased control in raw space; read it on the diff rows.
 
 Which of raw and diff becomes the headline metric is a decision for the team.
 
@@ -97,11 +105,17 @@ and 3.1 GB at peak. On these 3 doubles, no STACK variant beats the unchanged que
 or the additive baseline, frozen or adapted, raw or diff. The null-only adapter matches
 most of TTT's raw-MSE gain, so that gain is largely fitting STACK to the dataset.
 
+Disclosure: the pilot's 3 doubles (AHR+FEV, AHR+KLF1, BPGM+SAMD1) are held-out test
+doubles, and they have informed the method choices above. All further tuning and
+diagnosis uses validation doubles.
+
 Next steps:
-1. Hyperparameters chosen on validation doubles carved from the training doubles. No
-   cell of a held-out double ever enters adaptation or selection.
-2. All 26 held-out doubles on Colab, once a compute-unit budget is agreed.
-3. Energy distance alone at T=1 against the full objective, f_CLS and T=5.
+1. Reconstruct Arc's tutorial PBMC data through this code, to rule the pipeline in or out.
+2. A validation `EvalContext` on doubles carved from the training doubles. Hyperparameters
+   are chosen there; no cell of a held-out double enters adaptation or selection.
+3. An adapter trained on random non-neighbour doubles, the control TTT must beat, then
+   all 26 held-out doubles. That fits on this machine's GPU in a few hours.
+4. Energy distance alone at T=1 against the full objective, f_CLS and T=5.
 
 Deferred:
 - The X-Atlas/Orion arm, which needs a slice of the 126 GB Hugging Face copy.

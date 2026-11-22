@@ -13,8 +13,8 @@ Single-perturbation cells are split into "adapt" and "infer" halves, and predict
 scripts/norman_baselines.py, beside the same baselines and on the same genes.
 
 Each model is reported raw (the generated profile) and diff (observed query plus generated
-with prompt minus generated with a control prompt; Cell-Eval's generated-control reference,
-which cancels shifts STACK applies whatever the prompt). Suffix _one: prompt A, query B only.
+with prompt minus generated with a control prompt, which cancels shifts STACK applies
+whatever the prompt; read it as the margin over `query`). Suffix _one: prompt A, query B only.
 
     uv run python scripts/norman_compare.py --doubles 3 --ttt-steps 50   # from ttt/
 """
