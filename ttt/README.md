@@ -93,7 +93,9 @@ Built and unit-tested: everything above.
 Pilot (`results/ttt/norman_pilot3`): 3 held-out doubles, default STACK loss weights, no
 tuning. It is a pipeline and cost check, not a result. Per double, frozen prediction takes
 2 to 20 s and 50 adaptation steps about 15 s, with 1.5 GB of GPU memory for adaptation
-and 3.1 GB at peak.
+and 3.1 GB at peak. On these 3 doubles, no STACK variant beats the unchanged query cells
+or the additive baseline, frozen or adapted, raw or diff. The null-only adapter matches
+most of TTT's raw-MSE gain, so that gain is largely fitting STACK to the dataset.
 
 Next steps:
 1. Hyperparameters chosen on validation doubles carved from the training doubles. No

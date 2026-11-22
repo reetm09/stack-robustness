@@ -1,0 +1,35 @@
+{
+ "AHR+FEV": {
+  "icl_T1_seconds": 4.488219499588013,
+  "icl_T5_seconds": 18.174227476119995,
+  "nulladapt_T1_seconds": 4.0930256843566895,
+  "nulladapt_T5_seconds": 17.784500122070312,
+  "ttt_adapt_seconds": 12.841151714324951,
+  "ttt_adapt_peak_gpu_gb": 1.515572224,
+  "ttt_tasks": 9,
+  "ttt_T1_seconds": 4.080021142959595,
+  "ttt_T5_seconds": 17.8626389503479
+ },
+ "AHR+KLF1": {
+  "icl_T1_seconds": 8.44984745979309,
+  "icl_T5_seconds": 31.549192428588867,
+  "nulladapt_T1_seconds": 8.301474809646606,
+  "nulladapt_T5_seconds": 32.72890257835388,
+  "ttt_adapt_seconds": 13.248840570449829,
+  "ttt_adapt_peak_gpu_gb": 1.515572224,
+  "ttt_tasks": 17,
+  "ttt_T1_seconds": 8.271078109741211,
+  "ttt_T5_seconds": 32.369385957717896
+ },
+ "BPGM+SAMD1": {
+  "icl_T1_seconds": 4.089942693710327,
+  "icl_T5_seconds": 14.86322546005249,
+  "nulladapt_T1_seconds": 4.016037702560425,
+  "nulladapt_T5_seconds": 15.198513984680176,
+  "ttt_adapt_seconds": 12.729856729507446,
+  "ttt_adapt_peak_gpu_gb": 1.515572224,
+  "ttt_tasks": 11,
+  "ttt_T1_seconds": 4.021982431411743,
+  "ttt_T5_seconds": 15.211850881576538
+ }
+}
