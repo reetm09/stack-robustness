@@ -1,0 +1,180 @@
+\documentclass[times, twoside, watermark]{zHenriquesLab-StyleBioRxiv}
+
+\usepackage{balance}
+
+\leadauthor{Mishra, Ghaffari, Boldi, Tao, and Yang}
+
+\begin{document}
+
+\title{Generalizability and Robustness of In-Context-Learning for Single-Cell Perturbation Prediction: A Proposal}
+\shorttitle{CS 182 Project Proposal}
+
+\author[1, 2]{Reet Mishra}
+\author[1, 2]{Soodabeh Ghaffari}
+\author[1]{Andrew Boldi}
+\author[1]{Stephen Tao}
+\author[1]{Qile Yang}
+
+\affil[1]{UC Berkeley, Berkeley, CA 94720, USA}
+\affil[2]{Department of Bioengineering, University of California, San Francisco, San Francisco, CA, USA}
+
+\maketitle
+
+%TC:break Abstract
+
+\begin{abstract}
+Predicting how cells respond to perturbation is central to therapeutic discovery, and the response depends on two axes at once: the perturbation applied and the cellular context in which it acts. The same knockdown may be severe in one lineage and silent in another, and that context dependence is the therapeutic window rather than experimental noise.
+
+In-context models such as STACK condition on prompt cells at inference, and are therefore expected to carry a measured response into a context where it was never measured, without updating weights. We propose three studies of that claim. The first asks whether target-cell-line adaptation improves cross-cell-line prediction of CRISPRi knockdown responses in X-Atlas/Orion. The second asks whether in-context conditioning extends to a task STACK was never designed for, predicting double-knockdown responses from single-knockdown context in Norman et al. The third measures how STACK, TabPFN-3.5, adaptation variants, and statistical baselines degrade under cell-count reduction, count corruption, dataset shift, and prompt-query covariate mismatch. Because no prompt pairs a response measured in one context with the same response in another, the first two studies also ask whether adapting a small set of parameters for each test instance supplies that mapping. Throughout we report on both the full common-gene set and a shared 2,000 highly variable gene panel, revealing when performance follows perturbation signal and when it follows technical or donor context.
+\end{abstract}
+
+%TC:break main
+
+% \begin{keywords}
+% single-cell RNA sequencing | perturbation prediction | in-context learning | robustness | covariate shift
+% \end{keywords}
+
+\setlength\parindent{12pt}
+
+%% NOTE: In this format please use \section* with an asterisk
+
+\section*{Introduction and Background}
+
+Single-cell perturbation prediction asks a model to infer how a cell population responds to an intervention in a context where that response was not measured. Generalization across cell types, donors, and studies is difficult because biological response is mixed with library size, dropout, ambient RNA, doublets, protocol effects, and cohort composition. Existing perturbation models can fail to exceed linear baselines, which makes evaluation under controlled shifts as important as clean test performance \cite{ahlmann2025linear}. Recent work also shows that single-cell foundation-model embeddings can change after discarding only a fraction of observed counts \cite{sallam2026nuisance}. These results motivate a benchmark that treats robustness as a measured property rather than an assumption.
+
+We organize this question along three axes of generalization that in-context perturbation models are expected to satisfy. Context asks whether a response measured in one cell line, cell type, or donor transfers to another. Composition asks whether single-perturbation context supports prediction of multi-perturbation responses. Data quality asks whether predictions survive sparse, corrupted, or confounded inputs. Along each axis we compare in-context models against pre-specified baselines under calibrated metrics, because the choice of metric can decide whether a model appears to beat an uninformative predictor at all \cite{miller2026calibrated}. Test-time training is a fourth study: an intervention applied on top of the three axes to ask whether it improves transfer.
+
+Stack is an in-context model that uses cells as demonstrations at inference time \cite{dong2026stack}. Its aligned checkpoint receives prompt cells that represent a condition and query cells that represent the target population, then predicts query-cell expression under the prompt condition. Stack maps each raw-count vector to a fixed 15,012-gene vocabulary, compresses it into 100 gene-module tokens, and attends within and across cells. This design can transfer perturbation or donor signals without updating model weights, but it can also transmit technical and demographic signals carried by the prompt. Stack does not receive age, sex, disease, or batch as explicit inputs. It therefore provides a test case for whether cell-based conditioning separates an intended intervention from correlated covariates.
+
+TabPFN-3.5 provides a complementary model class because it performs tabular regression from labeled examples supplied in context and was pretrained on synthetic tabular tasks \cite{grinsztajn2026tabpfn3}. A comparison between Stack and TabPFN-3.5 tests whether a single-cell training prior improves robustness relative to a tabular prior. We will also include regression, nearest-neighbor, scVI, and doubly robust estimators so that gains are measured against methods with different assumptions \cite{lopez2018scvi,bang2005doubly}. Along the data-quality axis, our central question is: how does prediction change when the perturbation-defining prompt or target-defining query becomes sparse, technically distorted, shifted across datasets, or mismatched on donor covariates?
+
+Prompt-based conditioning has a further limitation, and it bears on the first two studies. No part of a STACK prompt pairs a response measured in one cell line with the same response in a second, or two single knockdowns with their joint effect, so the mapping those studies require can enter only through parameters. Fine-tuning supplies it through one checkpoint that must serve every source and target pair at once. Test-time training instead updates parameters at inference using a loss built from the examples available for the current test instance, which fits one pair, and has improved few-shot accuracy over both in-context prompting and global fine-tuning \cite{akyurek2025ttt}. We will evaluate it as a fourth study on top of the three axes.
+
+\section*{Key Questions and Hypotheses}
+
+Our questions follow three axes of generalization, context, composition, and data quality, with test-time training as a fourth study applied on top of them.
+
+\noindent\textbf{New Cell Line Prediction (context).}
+\emph{Target-cell-line adaptation for cross-cell-line perturbation-response prediction.} Will fine-tuning STACK on a subset of target-line knockdowns improve predictions for held-out target-line responses given measured examples of the same knockdowns in another line? We hypothesize that adaptation will improve recovery of signed expression changes because the response to knockdown depends on cellular context. A null or negative comparison would indicate no improvement from the tested adaptation procedure at the available training scale.
+
+\noindent\textbf{New Combinatorial Prediction (composition).}
+\emph{Leveraging in-context learning for double perturbation-response prediction.} Can a prompt built from single-knockdown cells predict a double-knockdown response, and does fine-tuning improve on STACK zero-shot and on STACK's own weighted-sum treatment of combinations? We hypothesize that fine-tuned STACK will outperform zero-shot STACK and the additive baseline for pairs whose joint effect is non-additive, because the prompt has no explicit way to name which perturbations compose a pair, so that mapping must be learned. A null or negative comparison would indicate that additive structure, or STACK's prompt alone, already accounts for composition at the available training scale.
+
+\noindent\textbf{Robustness (data quality).}
+\emph{Stability of in-context perturbation prediction under data-quality shifts.} Does prediction degrade gracefully when prompt or query cells become sparse, technically corrupted, shifted across datasets, or mismatched on donor covariates, and does a single-cell prior (STACK) degrade more slowly than a tabular prior (TabPFN-3.5) or linear baselines? We hypothesize that STACK will degrade more slowly under count corruption because its pretraining exposes it to technical variation, but will follow donor covariates carried by the prompt more than the baselines do. A null or negative comparison would indicate that single-cell pretraining confers no robustness advantage over tabular or linear methods.
+
+\noindent\textbf{Test-Time Training (on top of the axes).}
+\emph{Instance-specific adaptation for cross-context perturbation-response prediction.} Will adapting a small set of parameters separately for each test instance, on perturbations measured in both the source and the target context, improve predictions over frozen STACK and a single globally fine-tuned checkpoint? We hypothesize that it will, and that the gain will be largest for targets that the pre-specified linear baselines explain poorly, because a single checkpoint averages those targets together with the rest. A null or negative comparison would indicate that the context-transfer mapping is already carried by the prompt at the available training scale.
+
+
+\section*{Proposed Methods}
+
+\subsection*{Shared Experimental Setup}
+
+All four studies draw on one fixed set of six datasets, and every evaluation, zero-shot or supervised, uses the same baselines and metrics below. X-Atlas/Orion supports the context axis and Norman et al.\ supports the composition axis; both are described in their studies. OpenProblems PBMC and the Dong et al.\ cytokine data support the data-quality axis, together with a corruption sweep on X-Atlas/Orion, and the KPMP and Wells cohorts form a secondary covariate arm of that axis. Test-time training reuses the X-Atlas/Orion and Norman datasets. Several of these datasets, notably X-Atlas/Orion and Norman, may overlap with data seen by Stack in pretraining or post-training. We acknowledge this as a limitation of zero-shot comparisons and do not attempt to resolve it.
+
+The perturbation benchmark will use OpenProblems PBMC, which contains 146 compounds measured across three donors and multiple immune cell types, and the Dong et al. cytokine data, for which Stack used two donors with sufficient cells and six cytokine conditions \cite{luecken2025openproblems,dong2023cinema}. Both datasets were reported as unseen during Stack pretraining and post-training \cite{dong2026stack}. The covariate benchmark will use the Kidney Precision Medicine Project atlas, with 77 donors labeled by acute kidney injury, chronic kidney disease, hypertension, and diabetes history, and the Wells immune atlas, with 24 donors aged 20 to 75 years, sex, tissue, collection site, and viral serostatus \cite{deboer2021kpmp,wells2025immune}. These cohort datasets support donor-level shifts, although observational comparisons will be interpreted as conditional prediction unless causal assumptions are plausible.
+
+The shared perturbation task will predict a target effect from three inputs: perturbed prompt cells, matched control prompt cells, and control query cells from a held-out cell type or donor. Ground truth consists of measured perturbed query cells. In cohort data, selected cell types from donor A will form the prompt, non-overlapping types from donor B will form the query, and the held-out types from donor A will provide ground truth. We will evaluate same-donor transfer, cross-donor transfer, and donor-state generation, with all model selection performed on training donors or conditions. Cells from a test donor will never enter fine-tuning or hyperparameter selection. Writing $X^{p}_{\mathrm{pert}}$, $X^{p}_{\mathrm{ctrl}}$ for prompt cells, $X^{q}_{\mathrm{ctrl}}$ for query cells, and $\mu(\cdot)\in\mathbb{R}^{G}$ for the mean expression profile over $G$ genes, every model $f$ in Studies 1, 3, and 4 is scored on the same target effect, and Study 2 substitutes single-knockdown cells for the prompt and query as described there:
+\begin{equation}
+\begin{aligned}
+\hat{\delta} &= \mu\!\left(f\!\left(X^{p}_{\mathrm{pert}},\, X^{p}_{\mathrm{ctrl}},\, X^{q}_{\mathrm{ctrl}}\right)\right) - \mu\!\left(X^{q}_{\mathrm{ctrl}}\right),\\
+\delta &= \mu\!\left(X^{q}_{\mathrm{pert}}\right) - \mu\!\left(X^{q}_{\mathrm{ctrl}}\right),
+\end{aligned}
+\label{eq:effect}
+\end{equation}
+where $\delta$ is the effect measured in the held-out query cells.
+
+Models use four adaptation levels of the released Stack-Large-Aligned checkpoint. Zero-shot applies it without target-data training. A frozen-embedding head trains ridge regression or a two-layer multilayer perceptron on Stack's 1,600-dimensional embeddings to predict $\delta$. Partial adaptation updates the decoder and final transformer block, and full adaptation uses Stack's matched-cell-type, exponential-moving-average teacher procedure, a stretch experiment because the published setup used an 80 GB GPU \cite{dong2026stack}. Partial and full adaptation minimize an energy distance between generated cells $\hat{X}$ and measured cells $X$ of the same type, as in Stack's alignment objective,
+\begin{equation}
+\mathcal{L}_{\mathrm{ED}} = 2\,\mathbb{E}\|\hat{x}-x\| - \mathbb{E}\|\hat{x}-\hat{x}'\| - \mathbb{E}\|x-x'\|,
+\end{equation}
+and adaptation curves use 1, 5, 10, 25, and 100 percent of the available training contexts.
+
+Baselines follow the positive and negative controls of Miller et al.\ \cite{miller2026calibrated}. The negative controls are the control baseline, which predicts the average control profile, and the mean baseline, the average perturbed profile in the training set of the target context. The positive controls are the technical duplicate, which splits the measured perturbed cells in two and predicts one half from the other, and the interpolated duplicate, which blends the technical duplicate with the mean baseline per gene as $\hat{y}_g=\alpha_g\hat{y}^{\mathrm{dup}}_g+(1-\alpha_g)\hat{y}^{\mathrm{mean}}_g$ with $\alpha_g=1-p_g$ and $p_g$ the adjusted differential-expression $P$ value of gene $g$. We will also include the source-effect copy (PerturbMean, which transfers the average prompt effect to the query), the additive baseline for combinations, ridge regression and $k$-nearest neighbors on pseudobulk, a PCA-based linear baseline \cite{ahlmann2025linear}, TabPFN-3.5, scVI, and STATE if compute permits. Baseline strength varies with each dataset's data-generating process, perturbation strength, and noise, which is why every result is read against baselines on the same dataset. In Norman et al.\ roughly 96 percent of combination effects are additive, and the additive baseline recovers about 88 percent of the ideal performance gap, comparable to the interpolated duplicate. In Replogle K562 there are only about 3 differentially expressed genes per perturbation, against about 102 in Norman, so the mean baseline is hard to beat and even the technical duplicate can underperform it \cite{miller2026calibrated}.
+
+Primary expression metrics will follow Cell-Eval: Pearson correlation of predicted and observed perturbation deltas, Spearman correlation of log-fold changes among true differentially expressed genes, differential-expression precision-recall area, direction agreement, and top-gene overlap \cite{dong2026stack}. We add the error and weighted families of Miller et al.: mean squared and absolute error as guardrails against implausible predictions, weighted mean squared error, which upweights genes with strong perturbation effects, normalized inverse rank, and Pearson correlation on the top differentially expressed genes. Pearson$(\Delta_{\mathrm{ctrl}})$ is the gene-wise correlation of $\hat{\delta}$ and $\delta$ in Eq.~\eqref{eq:effect}, and Pearson$(\Delta_{\mathrm{pert}})$ references both to the mean perturbed profile instead of the control. Control-referenced correlations and unweighted errors can reward uninformative predictors through control bias and signal dilution, so we will report calibration of every metric $m$ with the dynamic range fraction of Miller et al.\ for each perturbation,
+\begin{equation}
+\mathrm{DRF}(m) = \frac{\left|\,m(\hat{y}^{\mathrm{pos}}) - m(\hat{y}^{\mathrm{neg}})\,\right|}{\left|\,m(y) - m(\hat{y}^{\mathrm{neg}})\,\right| + \epsilon},
+\end{equation}
+where $\hat{y}^{\mathrm{pos}}$ and $\hat{y}^{\mathrm{neg}}$ are the interpolated duplicate and the mean baseline, $m(y)$ is the perfect score, and $\epsilon$ is a small constant. Low DRF flags a metric that cannot separate our controls, and scores from such metrics will be interpreted accordingly. We compute each metric on the full gene intersection supported by a model and on the common 2,000-HVG panel selected from training and control data. The HVG results provide a shared comparison for TabPFN and other reduced-dimensional models, while the full-gene results retain information available to Stack. HVG performance will be interpreted as accuracy on a high-variance gene subset, not as whole-transcriptome accuracy. We may add further metrics as the evaluation proceeds, such as the pathway and neighborhood recovery analyses of Miller et al.
+
+\subsection*{New Cell Line Prediction}
+
+We proposed to evaluate target-cell-line adaptation using Xaira Therapeutics' X-Atlas/Orion CRISPRi Perturb-seq screens in HCT116 and HEK293T.\footnote{Huang et al., bioRxiv (2025), DOI \texttt{10.1101/2025.06.11.659105}.} Both conditions will start from Stack-Large-Aligned \cite{dong2026stack}. We will compare frozen STACK (no project-specific parameter updates) with STACK fine-tuned on training-gene perturbations and non-targeting controls from the target line.
+
+Our provisional eligibility rule will require at least 100 guide-filtered cells per line for each shared target, in GEM batches with non-targeting controls. We will partition eligible targets into training, validation, and test sets by gene identity, keeping all guides for each gene together. We will divide target-line controls within each GEM batch into disjoint training, validation, and test pools. Controls will be reusable across genes within each pool. At validation and test time, both conditions will receive identical measured other-line cells for the same knockdown as the prompt and identical target-line non-targeting control cells as the query, following STACK's cell-prompting workflow \cite{dong2026stack}. Measured target-line validation responses will guide checkpoint selection. Measured target-line test responses will be reserved for final scoring.
+
+We will align raw counts to the checkpoint's gene vocabulary using the same preprocessing for both conditions. We will compare predicted and observed batch-matched, log-normalized pseudobulk changes from measured target-line controls, scored with the shared metrics and baselines and averaged equally across test targets. A paired bootstrap across target genes will quantify uncertainty, and the source-effect copy, which predicts the measured other-line response unchanged, sets the bar that adaptation must clear. Any gain will estimate the benefit of fine-tuning with additional target-line training data given matched inference inputs. Because both models receive measured examples of each test knockdown from the other cell line, this experiment evaluates transfer across cellular contexts rather than prediction of entirely unseen perturbations.
+
+With HCT116 as the first target line, we will check that the aligned checkpoint can be fine-tuned and reloaded for generation on a small training and validation subset, and measure accelerator memory and runtime before scaling.
+
+\subsection*{New Combinatorial Prediction} Genes work in regulatory networks, often rarely in isolation, but it is notoriously difficult to generate large amounts of combinatorial data to understand how these networks function. The Norman et al  dataset \cite{Norman2019} is a very high quality perturbation dataset, one of the very few that contain double-perturbation data. It contains 48,407 cells spanning 105 single-gene perturbations, and 35,445 cells spanning 131 two-gene perturbations. The authors offers perturbations that cluster together recapitulating known biology. STACK introduces this in-context learning approach which allows us to prompt with a condition and query with cells we’d want to predict the effect on. 
+
+Stack's prompt has no explicit variable naming the component perturbations of a pair, and its own combinatorial cytokine results come from weighting single-perturbation predictions after the fact \cite{dong2026stack}. We hypothesize we can instead assess the model’s effect on combinatorial perturbations by redefining the training design. For training, we can assemble groups of perturbations in similar pathways or biological functions (identified using the cluster assignment in the Norman et al paper), and fine-tune STACK with pairs of genetic interactions.
+
+Instead of prompting with a baseline control cell like the original paper does and querying with a perturbed cell, we propose a design like the following: 
+
+\textbf{Prompt:} cells in gene knockdown A, \textbf{Query:} cells in gene knockdown B, \textbf{Target:} predicting perturbation effect on joint knockdown effects. 
+
+We can evaluate our model on a hold out double-knockdowns using a train/test split of 80/20 perturbations. Here, we would compare three models: STACK zero-shot, STACK fine-tuned, and the weighted-sum approach described below. Fine-tuning would use the training-split doubles, with their constituent single knockdowns as prompt and query. We will also compare against a baseline, linear method, additive of two perturbation's effect to see if both STACK methods do better than a linear baseline in prediction of combinatorial effect. As noted in the shared setup, Norman et al.\ is largely additive and covers a small share of the possible pairs, so the additive baseline may be hard to beat; we will therefore report results separately for the pairs with the largest additive residual. We will score with the shared metrics. True differentially expressed genes, used by the top-20 and DE-based metrics, will come from running Scanpy's \cite{Wolf2018} Rank Gene Groups function which conducts a Wilcoxon test for differential expression, widely established in the single-cell perturbation field. We can also evaluate these based on STRING DB/DEPMAP co-essentiality target scores of interactions. This would allow us to compare our results with known literature about gene-pair interactions.
+
+As a third arm we will reproduce the approach Stack itself used for combinatorial conditions, a weighted sum of single-perturbation predictions \cite{dong2026stack}. For a pair $(A,B)$, with $\hat{\delta}_A$ and $\hat{\delta}_B$ the predictions from prompts of single knockdowns $A$ and $B$ on the same query, weights come from the grid Stack used. Stack chose its weight by Pearson $\Delta$ on the evaluation conditions, whereas we will choose weights on training doubles only. The additive baseline is the special case $w_A=w_B=1$. The direct design above predicts the pair from a single order, with $A$ as prompt and $B$ as query. If time permits, we will also average over both orders, using the same swap as the test-time-training transformations so that the prediction does not depend on which knockdown is named as the prompt:
+\begin{equation}
+\begin{aligned}
+\hat{\delta}^{\mathrm{sum}}_{AB} &= w_A\,\hat{\delta}_A + w_B\,\hat{\delta}_B,\\
+&\quad w_A,w_B \in \{0.1,0.3,0.5,0.7,0.9\},\\
+\hat{\delta}^{\mathrm{one}}_{AB} &= f(P_A, Q_B),\\
+\hat{\delta}^{\mathrm{two}}_{AB} &= \tfrac{1}{2}\left[\, f(P_A, Q_B) + f(P_B, Q_A) \,\right].
+\end{aligned}
+\end{equation}
+
+This is ultimately very interesting, as STACK's prompt has no explicit way to name the component perturbations of a pair, but its in-context learning methodology still lets us test whether a pair can be composed in context, allowing us on a broader level to learn whether in-context learning can be leveraged for prediction of combinatorial perturbations.
+
+\subsection*{Robustness}
+
+This study runs the shared task on OpenProblems PBMC, the Dong et al.\ cytokine data, and, so that the axes share data, X-Atlas/Orion, with a covariate arm on KPMP and Wells. Models are Stack under the adaptation levels above, TabPFN-3.5 on donor-condition pseudobulks (50 principal components fit on training controls over 2,000 HVGs, one regressor per component, mapped back to gene space), and the shared baselines. If time permits, a covariate-conditioned Stack adds learned covariate embeddings to its initial cell tokens, and a cross-fitted doubly robust estimator tests donor-level exposure effects \cite{bang2005doubly}, interpreted as conditional prediction unless causal assumptions hold.
+
+Sample size varies prompt and query counts independently over 16 to 256 cells with ten draws each, separating evidence about the perturbation from evidence about the target population. Technical corruption is applied to the prompt, query, or both, using binomial thinning at rate $\rho \in \{5,10,25,50\}$ percent and ambient contamination mixing a fraction $\alpha \in \{5,10,20\}$ percent of an empirical background profile $b$ into each cell of library size $N_c$,
+\begin{equation}
+\begin{aligned}
+\tilde{x}_{cg} &\sim \mathrm{Binomial}\!\left(x_{cg},\, 1-\rho\right),\\
+\tilde{x}_{c\cdot} &\sim \mathrm{Multinomial}\!\left(N_c,\ (1-\alpha)\,x_{c\cdot}/N_c + \alpha\, b\right),
+\end{aligned}
+\end{equation}
+plus library-size scaling, doublet injection, and gene-specific amplification \cite{sallam2026nuisance,perciballi2026microbiome}. Shift uses donor- and study-level holdouts, covariate-matched versus covariate-swapped prompts that hold the perturbation fixed, and replacement of 5 to 50 percent of prompt cells with cells from an irrelevant donor or condition. For a metric $s$ from the shared set, covariate reliance is the matched-minus-swapped gap
+\begin{equation}
+\Gamma_c = s\!\left(\hat{\delta}(P_{\mathrm{match}}),\, \delta\right) - s\!\left(\hat{\delta}(P_{\mathrm{swap}(c)}),\, \delta\right),
+\end{equation}
+where $P_{\mathrm{swap}(c)}$ changes covariate $c$ and a large gap means predictions follow $c$ rather than the perturbation.
+
+Robustness is summarized by clean performance, degradation $S(0)-S(\sigma)$ at severity $\sigma$, area under the performance-versus-severity curve, and worst-severity performance, and a model counts as robust only if it pairs competitive clean accuracy with limited degradation. We average over draws, report per donor, perturbation, and cell type, use donor- or condition-clustered bootstrap intervals, and reuse corruption draws across models for paired comparisons.
+
+\subsection*{Test-Time Training}
+
+The studies above compare a frozen checkpoint against a single globally fine-tuned checkpoint. We will add a further condition, adapted separately for each test instance from data available at inference, and report it as a fourth study on top of the three axes, on the X-Atlas/Orion and Norman datasets.
+ 
+Fix a target context $B$ and a source context $A$. Let $\mathcal{H} = \{g : X^{A}_{g} \text{ and } X^{B}_{g} \text{ are both measured}\}$, and let $g^{*} \notin \mathcal{H}$ be a test perturbation measured in $A$ only. For a set $\mathcal{T}$ of transformations of the cell sets, instance-specific parameters minimize STACK's energy-distance alignment objective, specified with the adaptation levels above, over the perturbations shared by the two contexts,
+\begin{equation}
+\theta_{g^{*}} = \arg\min_{\theta}\ \sum_{g \in \mathcal{H}}\ \sum_{t \in \mathcal{T}}\ \mathcal{L}_{\mathrm{ED}}\!\left(t\!\left(X^{A}_{g},\, X^{B}_{\mathrm{ctrl}},\, X^{B}_{g}\right);\ \theta\right),
+\label{eq:ttt}
+\end{equation}
+with $\theta$ restricted to low-rank adapters on the decoder and the final transformer block \cite{hu2022lora}. Prediction for $g^{*}$ will then proceed as in the frozen condition. Step count, learning rate, and adapter rank will be selected on held-out $g_j \in \mathcal{H}$, and never on a target-context measurement of $g^{*}$.
+ 
+Three variants will extend this construction. When $\mathcal{H}$ is small we will add a null-perturbation task, with prompt $X^{A}_{\mathrm{ctrl}}$, query $X^{B}_{\mathrm{ctrl}}$, and a target effect of zero, which is labeled in the target context and carries no perturbation information. For the combinatorial study, $\mathcal{H}$ will become the constituent singles of the test double together with the singles of its cluster-mates, and $\mathcal{T}$ will include the swap of the prompt and query assignments, which leaves the joint effect unchanged. Where $\mathcal{H}$ is large we will compare random selection against retrieval of the $k$ nearest perturbations in STACK embedding space \cite{hardt2024nearest}.
+ 
+We will group $\mathcal{T}$ by how exactly each transformation preserves the perturbation effect, the change in mean expression relative to matched controls, and report results by group. Cell-order permutation and subsampling without replacement preserve it exactly. A gene-wise shift applied in log space to prompt and query cells alike leaves it unchanged and requires its inverse on absolute expression at inference. The count thinning and ambient mixing specified in the robustness section above do not preserve it, and will be paired with the clean target as input-side augmentations only. Gene-identity permutation is excluded because it destroys the semantics of the fixed gene vocabulary. At inference we will aggregate by taking the median across subsampling draws within each transformation, then the median across transformations, which is less sensitive than a flat mean to one poorly behaved transformation. Aggregation requires no gradient steps, so we will also report it on the frozen checkpoint.
+ 
+We will then make two comparisons. Per-task adapters outperform a shared adapter when test instances are difficult to distinguish from their inputs, and the reverse holds when they are easy to distinguish \cite{akyurek2025ttt}, so we will compare per-perturbation adapters within a cell line against one shared adapter per context across cell lines and donors. Because linear baselines are already competitive on this task \cite{ahlmann2025linear}, we will also test whether the per-target gain correlates with the residual of that target from the best pre-specified linear baseline. For both comparisons we will report accuracy against wall-clock time and accelerator memory per test perturbation, since instance-specific adaptation multiplies inference cost by the number of test perturbations.
+
+\setlength\parindent{0pt}
+
+\begin{acknowledgements}
+We thank Professor Reza Abbasi-Asl for his guidance and comments on the overall proposal. OpenAI and Anthropic Products were used to aid the drafting process, but we authors take full intellectual responsibilty for the entire work produced here.
+\end{acknowledgements}
+
+\section*{Bibliography}
+\bibliography{references}
+\balance
+
+\end{document}
