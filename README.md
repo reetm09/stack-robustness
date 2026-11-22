@@ -106,7 +106,7 @@ The Cell-Eval-style metrics are computed on mean profiles rather than through th
 ## Norman et al. (2019): Study 2 setup
 
 ```bash
-dibs submit --cpus 4 --mem 6G --time 30m -- uv run python scripts/norman_baselines.py
+dibs submit --cpus 4 --mem 10G --time 30m -- uv run python scripts/norman_baselines.py   # peak RAM 7.1 GB
 ```
 
 All 105 singles and 80% of the 131 doubles are training conditions. The other 26
