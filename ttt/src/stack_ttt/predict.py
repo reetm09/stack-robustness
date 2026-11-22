@@ -63,6 +63,29 @@ def mean_log_profile(counts, library, genes, panel) -> pd.Series:
     return pd.Series(np.asarray(X.mean(axis=0)).ravel(), index=list(panel))
 
 
+def predict_double(model, cells, pools, double, genelist_path, panel, num_steps, draws, batch_size=8) -> dict:
+    """Predicted profiles for a double A+B, from the "infer" cells of A and B.
+
+    "one": prompt A, query B, median over draws. "both": median over draws within each
+    prompt order, then over the two orders (swapping leaves the joint target unchanged).
+    """
+    a, b = double.split("+")
+    by_order = {}
+    for prompt, query in [(a, b), (b, a)]:
+        p_rows, q_rows = pools[(prompt, "infer")], pools[(query, "infer")]
+        by_order[(prompt, query)] = [
+            mean_log_profile(
+                generate(model, cells.counts[p_rows], cells.counts[q_rows], cells.genes, genelist_path,
+                         num_steps=num_steps, seed=1000 * draw + 1, batch_size=batch_size),
+                cells.library[q_rows],
+                cells.genes,
+                panel,
+            )
+            for draw in range(draws)
+        ]
+    return {"one": pd.concat(by_order[(a, b)], axis=1).median(axis=1), "both": median_of_medians(by_order)}
+
+
 def median_of_medians(profiles: dict) -> pd.Series:
     """Per gene, the median over draws within each transformation, then the median
     over transformations (less sensitive to one poorly behaved transformation)."""

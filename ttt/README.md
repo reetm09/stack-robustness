@@ -14,7 +14,7 @@ the same `EvalContext` as the baselines.
 cd ttt
 uv sync                                   # torch, arc-stack 0.1.3, and the shared package
 uv run pytest                             # CPU only; the GPU is hidden from tests
-dibs submit --cpus 4 --mem 8G --vram 6G --time 30m -- uv run python scripts/norman_icl.py --doubles 3
+dibs submit --cpus 4 --mem 8G --vram 6G --time 30m -- uv run python scripts/norman_compare.py --doubles 3
 ```
 
 ## From the paper to STACK
@@ -67,7 +67,7 @@ prompt cells. JUN+CEBPA has only 54 cells.
 Built and unit-tested: everything above.
 
 Next steps:
-1. Frozen STACK (ICL) scored end to end, at T=1 and T=5 (`scripts/norman_icl.py`).
+1. Frozen STACK (ICL) and TTT scored side by side (`scripts/norman_compare.py`), at T=1 and T=5.
 2. TTT with energy distance only at T=1, then the regularizers, f_CLS and T=5.
 3. Hyperparameters chosen on validation doubles carved from the training doubles. No
    cell of a held-out double ever enters adaptation or selection.

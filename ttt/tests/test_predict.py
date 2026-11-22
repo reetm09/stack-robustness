@@ -7,7 +7,8 @@ import pytest
 import torch
 from scipy import sparse
 
-from stack_ttt.predict import generate, mean_log_profile, median_of_medians
+from stack_ttt.norman import Cells, single_pools
+from stack_ttt.predict import generate, mean_log_profile, median_of_medians, predict_double
 
 from conftest import TINY_CONFIG
 
@@ -33,6 +34,22 @@ def test_mean_log_profile_normalizes_by_the_given_library_and_keeps_panel_genes(
     assert list(out.index) == ["c", "a"]
     assert out["a"] == pytest.approx((math.log1p(1000.0) + 0.0) / 2)
     assert out["c"] == pytest.approx((math.log1p(5000.0) + math.log1p(3500.0)) / 2)
+
+
+def test_predict_double_aggregates_both_prompt_orders(tiny_model, tmp_path):
+    genelist = tmp_path / "genes.pkl"
+    genelist.write_bytes(pickle.dumps(GENES))
+    rng = np.random.default_rng(0)
+    condition = np.array(["A"] * 24 + ["B"] * 24)
+    counts = sparse.csr_matrix(rng.poisson(3.0, size=(48, len(GENES))).astype(np.float32))
+    cells = Cells(counts=counts, library=np.full(48, 500.0), condition=condition, genes=GENES)
+    pools = single_pools(condition, ["A", "B"], seed=0)
+
+    out = predict_double(tiny_model, cells, pools, "A+B", genelist, panel=GENES[:5], num_steps=1, draws=2)
+
+    assert set(out) == {"one", "both"}
+    assert list(out["one"].index) == GENES[:5] and list(out["both"].index) == GENES[:5]
+    assert np.isfinite(out["both"].to_numpy()).all()
 
 
 def test_generate_returns_one_generated_cell_per_query_cell(tiny_model, tmp_path):
