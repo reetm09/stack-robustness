@@ -1,17 +1,32 @@
 [project]
 name = "stack-robustness"
 version = "0.1.0"
-description = "Add your description here"
+description = "Shared scoring code for the STACK perturbation-prediction studies (CS 182 final project)"
 readme = "README.md"
 authors = [
     { name = "Andrew Boldi", email = "andrewjboldi@gmail.com" }
 ]
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "anndata>=0.10",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scanpy>=1.10",
+    "scikit-learn>=1.3",
+    "scipy>=1.11",
+]
 
 [project.scripts]
 stack-robustness = "stack_robustness:main"
 
+[dependency-groups]
+dev = ["pytest>=8"]
+
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# anndata itself triggers this pandas deprecation; nothing in our code does.
+filterwarnings = ["ignore:The 'future.infer_string' option is deprecated"]
