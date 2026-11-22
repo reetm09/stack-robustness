@@ -7,8 +7,28 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 from scipy import sparse
+from stack.models.core import inference as _stack_inference
 
 from stack_robustness.data import log_normalize
+
+
+class _NumpyWithClampedQuantile:
+    """numpy as arc-stack's inference module sees it, except that quantile clamps q into [0, 1].
+
+    arc-stack 0.1.3's last generation step asks for q = (m/n - 0) * n/m, which floating point
+    rounds to 1.0000000000000002 for about 3% of (masked, total) cell counts, and np.quantile
+    then raises. The intended q is exactly 1: generate every cell still masked.
+    """
+
+    def __getattr__(self, name):
+        return getattr(np, name)
+
+    @staticmethod
+    def quantile(a, q, *args, **kwargs):
+        return np.quantile(a, np.clip(q, 0.0, 1.0), *args, **kwargs)
+
+
+_stack_inference.np = _NumpyWithClampedQuantile()
 
 
 def generate(

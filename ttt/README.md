@@ -55,6 +55,30 @@ These were checked against arc-stack 0.1.3 and `Stack-Large-Aligned`:
 - Generation returns counts sampled from the negative-binomial output. They are
   normalized with the query cells' all-gene totals, the convention of the ground truth.
 
+## STACK does not reproduce Norman's cells (and what the comparison does about it)
+
+Run frozen on Norman's K562 cells, STACK shifts hundreds of genes away from the data
+whatever the prompt. This happens even when it only reconstructs fully observed control
+cells, with nothing masked or generated. In those control cells, MALAT1 drops from 4.6
+to 1.5 in log-normalized expression and H3F3A, HIST1H4C and H2AFZ go from about 2.9 to
+0.01, while HBG2 rises from 1.8 to 4.5. The top 1,000 genes carry 90% of the squared
+error. Mapping 713 renamed genes into the vocabulary through Ensembl IDs
+(`stack_robustness.genes.vocabulary_aliases`) does not change this. It reflects STACK's
+training data, not this pipeline.
+
+Raw scoring charges that shift to STACK, and an adapter can "improve" just by learning it.
+`norman_compare.py` therefore reports, side by side:
+- `*_raw`: the generated profile, scored as Eq. 1 specifies.
+- `*_diff`: the observed query profile, plus generation with the prompt minus generation
+  with a control prompt (seeds paired, separate control cells). This is the
+  generated-control reference Cell-Eval uses, and it cancels the shift.
+- `query`: the query cells unchanged, with no model. For a double this is B's own
+  measured effect, which STACK should not get credit for.
+- `nulladapt_*`: one adapter trained only on control → control. TTT counts as working
+  only where it beats this.
+
+Which of raw and diff becomes the headline metric is a decision for the team.
+
 ## Norman neighbourhoods
 
 For the 26 held-out doubles (seed 0), H(g*) has 0 to 15 training doubles; most have 3
@@ -66,14 +90,19 @@ prompt cells. JUN+CEBPA has only 54 cells.
 
 Built and unit-tested: everything above.
 
+Pilot (`results/ttt/norman_pilot3`): 3 held-out doubles, default STACK loss weights, no
+tuning. It is a pipeline and cost check, not a result. Per double, frozen prediction takes
+2 to 20 s and 50 adaptation steps about 15 s, with 1.5 GB of GPU memory for adaptation
+and 3.1 GB at peak.
+
 Next steps:
-1. Frozen STACK (ICL) and TTT scored side by side (`scripts/norman_compare.py`), at T=1 and T=5.
-2. TTT with energy distance only at T=1, then the regularizers, f_CLS and T=5.
-3. Hyperparameters chosen on validation doubles carved from the training doubles. No
+1. Hyperparameters chosen on validation doubles carved from the training doubles. No
    cell of a held-out double ever enters adaptation or selection.
+2. All 26 held-out doubles on Colab, once a compute-unit budget is agreed.
+3. Energy distance alone at T=1 against the full objective, f_CLS and T=5.
 
 Deferred:
 - The X-Atlas/Orion arm, which needs a slice of the 126 GB Hugging Face copy.
 - k-nearest-neighbour retrieval of H(g*).
-- The shared context adapter.
+- The shared context adapter. The null-only adapter is the first such control.
 - Count-space input augmentations.

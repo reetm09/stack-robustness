@@ -69,6 +69,19 @@ def test_differential_prediction_is_the_query_itself_when_the_prompt_is_the_refe
     pd.testing.assert_series_equal(out["diff_one"], out["query_one"], check_names=False)
 
 
+def test_stack_generation_tolerates_its_unmask_rate_rounding_just_above_one():
+    # arc-stack 0.1.3's last generation step asks np.quantile for q = (m/n - 0) * n/m, which is
+    # 1.0000000000000002 for m=7, n=25 (and ~3% of pairs); stack_ttt clamps it to 1.
+    from stack.models.core import inference
+
+    values = np.arange(7.0)
+    q = (7 / 25 - 0.0) * 25 / 7
+
+    assert q > 1.0
+    assert inference.np.quantile(values, q) == 6.0
+    assert inference.np.arange(3).tolist() == [0, 1, 2]  # everything else is plain numpy
+
+
 def test_generate_returns_one_generated_cell_per_query_cell(tiny_model, tmp_path):
     genelist = tmp_path / "genes.pkl"
     genelist.write_bytes(pickle.dumps(GENES))
