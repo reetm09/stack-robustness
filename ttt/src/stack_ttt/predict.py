@@ -63,27 +63,46 @@ def mean_log_profile(counts, library, genes, panel) -> pd.Series:
     return pd.Series(np.asarray(X.mean(axis=0)).ravel(), index=list(panel))
 
 
-def predict_double(model, cells, pools, double, genelist_path, panel, num_steps, draws, batch_size=8) -> dict:
+def predict_double(model, cells, pools, double, genelist_path, panel, num_steps, draws, batch_size=8,
+                   reference=None) -> dict:
     """Predicted profiles for a double A+B, from the "infer" cells of A and B.
 
-    "one": prompt A, query B, median over draws. "both": median over draws within each
-    prompt order, then over the two orders (swapping leaves the joint target unchanged).
+    For each prompt order (A prompts B's cells, and B prompts A's):
+      raw    the generated cells' profile
+      query  the query cells' own observed profile (no model), the floor STACK must beat
+      diff   (with `reference`, rows of control cells) the observed query profile plus
+             generated-with-prompt minus generated-with-control-prompt, seeds paired. This
+             is the generated-control reference Cell-Eval uses; it cancels shifts STACK
+             applies whatever the prompt.
+    "<name>_one" keeps prompt A, query B (median over draws); "<name>" takes the median over
+    draws within each order, then over both orders (swapping leaves the joint target unchanged).
     """
     a, b = double.split("+")
-    by_order = {}
+    found = {"raw": {}, "query": {}, "diff": {}}
     for prompt, query in [(a, b), (b, a)]:
         p_rows, q_rows = pools[(prompt, "infer")], pools[(query, "infer")]
-        by_order[(prompt, query)] = [
-            mean_log_profile(
-                generate(model, cells.counts[p_rows], cells.counts[q_rows], cells.genes, genelist_path,
-                         num_steps=num_steps, seed=1000 * draw + 1, batch_size=batch_size),
-                cells.library[q_rows],
-                cells.genes,
-                panel,
-            )
-            for draw in range(draws)
-        ]
-    return {"one": pd.concat(by_order[(a, b)], axis=1).median(axis=1), "both": median_of_medians(by_order)}
+        q_counts, q_lib = cells.counts[q_rows], cells.library[q_rows]
+        observed = mean_log_profile(q_counts, q_lib, cells.genes, panel)
+        found["query"][(prompt, query)] = [observed]
+        found["raw"][(prompt, query)], found["diff"][(prompt, query)] = [], []
+        for draw in range(draws):
+            seed = 1000 * draw + 1
+
+            def run(prompt_rows):
+                gen = generate(model, cells.counts[prompt_rows], q_counts, cells.genes, genelist_path,
+                               num_steps=num_steps, seed=seed, batch_size=batch_size)
+                return mean_log_profile(gen, q_lib, cells.genes, panel)
+
+            generated = run(p_rows)
+            found["raw"][(prompt, query)].append(generated)
+            if reference is not None:
+                found["diff"][(prompt, query)].append(observed + generated - run(reference))
+    out = {}
+    for name, by_order in found.items():
+        if by_order[(a, b)]:
+            out[f"{name}_one"] = pd.concat(by_order[(a, b)], axis=1).median(axis=1)
+            out[name] = median_of_medians(by_order)
+    return out
 
 
 def median_of_medians(profiles: dict) -> pd.Series:

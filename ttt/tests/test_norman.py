@@ -41,6 +41,13 @@ def test_load_norman_lines_genes_up_with_stack_vocabulary_ignoring_case(raw_path
     assert cells.rows("A").tolist() == [1]
 
 
+def test_load_norman_applies_gene_renames_before_matching_the_vocabulary(raw_path):
+    cells = load_norman(raw_path, VOCAB, conditions={"A"}, aliases={"XYZ": "NOTINDATA"})
+
+    # the data's XYZ column (11 for cell A) now fills the vocabulary's NOTINDATA position
+    assert cells.counts.toarray().tolist() == [[12.0, 10.0, 9.0, 11.0]]
+
+
 def test_single_pools_split_each_single_into_disjoint_adapt_and_infer_cells():
     condition = np.array(["A"] * 6 + ["B"] * 4 + ["A+B"] * 3)
 

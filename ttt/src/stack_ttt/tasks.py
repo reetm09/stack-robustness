@@ -40,10 +40,12 @@ def norman_tasks(double: str, train_doubles, null: bool = False) -> list:
 
 
 def control_pools(condition: np.ndarray, seed: int) -> dict:
-    """Control cells in three disjoint pools, so the null task never shows the model the
-    same cell as prompt, query and target."""
+    """Control cells in four disjoint pools: prompt, query and target for the null task, so it
+    never shows the model the same cell twice, and "infer" for the control prompt used as a
+    reference at prediction time."""
     rows = np.random.default_rng(seed).permutation(np.flatnonzero(condition == CONTROL))
-    return {(CONTROL, role): part for role, part in zip(("prompt", "query", "target"), np.array_split(rows, 3))}
+    roles = ("prompt", "query", "target", "infer")
+    return {(CONTROL, role): part for role, part in zip(roles, np.array_split(rows, len(roles)))}
 
 
 def task_rows(task: Task, pools: dict, condition: np.ndarray):

@@ -27,7 +27,7 @@ def test_norman_tasks_use_both_orders_of_each_neighbour_and_the_test_doubles_own
 
 
 def test_task_rows_keep_adaptation_and_inference_cells_apart():
-    condition = np.array(["A"] * 4 + ["C"] * 4 + ["A+C"] * 3 + ["control"] * 9)
+    condition = np.array(["A"] * 4 + ["C"] * 4 + ["A+C"] * 3 + ["control"] * 12)
     pools = {("A", "adapt"): np.array([0, 1]), ("A", "infer"): np.array([2, 3]), ("C", "adapt"): np.array([4, 5])}
     pools.update(control_pools(condition, seed=0))
 
@@ -38,8 +38,10 @@ def test_task_rows_keep_adaptation_and_inference_cells_apart():
     assert own_prompt.tolist() == [2, 3] and no_query is None and no_target is None
 
     p, q, t = task_rows(Task("control", "control", "control"), pools, condition)
-    assert len(p) == len(q) == len(t) == 3
-    assert not (set(p) & set(q) or set(p) & set(t) or set(q) & set(t))
+    reference = pools[("control", "infer")]  # the control prompt used at inference
+    assert len(p) == len(q) == len(t) == len(reference) == 3
+    parts = [set(p), set(q), set(t), set(reference)]
+    assert all(not (x & y) for i, x in enumerate(parts) for y in parts[i + 1:])
 
 
 def test_pick_draws_without_replacement_when_the_pool_is_big_enough():

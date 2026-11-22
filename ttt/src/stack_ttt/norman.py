@@ -21,16 +21,19 @@ class Cells:
         return np.flatnonzero(self.condition == condition)
 
 
-def load_norman(raw_path, vocab, conditions=None) -> Cells:
+def load_norman(raw_path, vocab, conditions=None, aliases=None) -> Cells:
     """Raw counts of the requested conditions (all if None), columns in vocabulary order.
 
-    Genes are matched case-insensitively, as STACK's own data loaders do.
+    Genes are matched case-insensitively, as STACK's own data loaders do, after renaming
+    them with `aliases` (data symbol -> vocabulary symbol; see
+    stack_robustness.genes.vocabulary_aliases).
     """
     backed = ad.read_h5ad(raw_path, backed="r")
     condition = backed.obs["perturbation"].astype(str).str.replace("_", "+", regex=False).to_numpy()
     keep = np.ones(len(condition), bool) if conditions is None else np.isin(condition, list(conditions))
     position = {g.upper(): j for j, g in enumerate(vocab)}
-    names = [str(g).upper() for g in backed.var_names]
+    aliases = aliases or {}
+    names = [aliases.get(str(g), str(g)).upper() for g in backed.var_names]
     data_cols = np.array([i for i, g in enumerate(names) if g in position])
     vocab_cols = np.array([position[names[i]] for i in data_cols])
     X = sparse.csc_matrix(backed.X[:, data_cols])  # stored column-major: reads only these genes

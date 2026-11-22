@@ -36,20 +36,37 @@ def test_mean_log_profile_normalizes_by_the_given_library_and_keeps_panel_genes(
     assert out["c"] == pytest.approx((math.log1p(5000.0) + math.log1p(3500.0)) / 2)
 
 
-def test_predict_double_aggregates_both_prompt_orders(tiny_model, tmp_path):
+def _two_singles(tmp_path):
     genelist = tmp_path / "genes.pkl"
     genelist.write_bytes(pickle.dumps(GENES))
     rng = np.random.default_rng(0)
-    condition = np.array(["A"] * 24 + ["B"] * 24)
-    counts = sparse.csr_matrix(rng.poisson(3.0, size=(48, len(GENES))).astype(np.float32))
-    cells = Cells(counts=counts, library=np.full(48, 500.0), condition=condition, genes=GENES)
-    pools = single_pools(condition, ["A", "B"], seed=0)
+    condition = np.array(["A"] * 24 + ["B"] * 24 + ["control"] * 24)
+    counts = sparse.csr_matrix(rng.poisson(3.0, size=(72, len(GENES))).astype(np.float32))
+    cells = Cells(counts=counts, library=np.full(72, 500.0), condition=condition, genes=GENES)
+    return cells, single_pools(condition, ["A", "B"], seed=0), genelist
+
+
+def test_predict_double_reports_raw_and_unchanged_query_profiles(tiny_model, tmp_path):
+    cells, pools, genelist = _two_singles(tmp_path)
 
     out = predict_double(tiny_model, cells, pools, "A+B", genelist, panel=GENES[:5], num_steps=1, draws=2)
 
-    assert set(out) == {"one", "both"}
-    assert list(out["one"].index) == GENES[:5] and list(out["both"].index) == GENES[:5]
-    assert np.isfinite(out["both"].to_numpy()).all()
+    assert set(out) == {"raw", "raw_one", "query", "query_one"}
+    assert all(list(v.index) == GENES[:5] for v in out.values())
+    b_rows = pools[("B", "infer")]
+    expected = mean_log_profile(cells.counts[b_rows], cells.library[b_rows], GENES, GENES[:5])
+    pd.testing.assert_series_equal(out["query_one"], expected, check_names=False)
+
+
+def test_differential_prediction_is_the_query_itself_when_the_prompt_is_the_reference(tiny_model, tmp_path):
+    cells, pools, genelist = _two_singles(tmp_path)
+    reference = pools[("A", "infer")]  # prompting with A is then identical to the reference prompt
+
+    out = predict_double(tiny_model, cells, pools, "A+B", genelist, panel=GENES[:5], num_steps=1, draws=2,
+                         reference=reference)
+
+    assert {"diff", "diff_one"} <= set(out)
+    pd.testing.assert_series_equal(out["diff_one"], out["query_one"], check_names=False)
 
 
 def test_generate_returns_one_generated_cell_per_query_cell(tiny_model, tmp_path):
