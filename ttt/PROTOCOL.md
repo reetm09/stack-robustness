@@ -130,7 +130,8 @@ Each prediction uses 2 draws.
 
 ## Changes after this point
 
-Neither change below was made after seeing any validation score.
+The first two changes were made before any validation score. The third was made after
+stage 1's scores but before any TTT result, and changes no setting or rule.
 
 - **2026-11-22: a workaround for small query sets.** arc-stack 0.1.3 fills a short
   window with at most one extra copy of the query cells. A query set smaller than half
@@ -155,3 +156,30 @@ Neither change below was made after seeing any validation score.
   the wMSE selection rule stand. The first setting (final block, 1e-4) is rerun from
   scratch so that all four settings have the curve; its earlier adapter and 20 pairs
   were set aside unscored.
+- **2026-11-23: fresh adapters start from the run's seed.**
+  - **The problem:** `adapt()` re-initialised LoRA A from torch's global generator before
+    seeding it. A `ttt` or `ttt_random` pair's starting adapter therefore depended on
+    whatever ran before it in the process, so a resumed run started differently from an
+    uninterrupted one.
+  - **The fix:** it now seeds first (tested).
+  - **Scope:** stage 1's shared adapters were trained before this change. Every TTT run,
+    and the test run's shared adapter, use the new initialisation.
+
+## Decisions taken by these rules
+
+- **Stage 1 (2026-11-23): final block + decoder, learning rate 3e-4.** Median validation
+  wMSE of `shared_T1_diff` over the 21 validation doubles, 2,000 steps each:
+
+  | scope | lr 1e-4 | lr 3e-4 |
+  |---|---|---|
+  | final block + decoder | 0.01959 | 0.01629 |
+  | cross-cell attention in all layers + decoder | 0.01696 | 0.01615 |
+
+  - **The tie:** cross-cell attention at 3e-4 is best, but the final block at 3e-4 is only
+    0.91% above it, so the tie rule picks the smaller scope.
+  - **Run-to-run noise:** training on the GPU is not bit-reproducible. Rerunning the final
+    block at 1e-4 moved its median over the same 20 pairs by 1.1%. Per pair, the change was
+    0.7% at the median and 3.7% at most. Gaps under about 1% are therefore within this
+    noise.
+  - **For reference:** frozen STACK (`icl_T1_diff`) scored 0.0260, the both-orders query
+    cells 0.0222, and the additive baseline 0.0094.

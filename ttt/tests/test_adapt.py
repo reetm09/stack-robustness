@@ -162,3 +162,16 @@ def test_task_losses_repeat_exactly_and_leave_the_global_generator_alone(setup):
     assert torch.equal(torch.get_rng_state(), state)
     assert task_losses(model, cells, tasks, pools, CONFIG) == first
     assert set(first) == set(COMPONENTS) and all(math.isfinite(v) for v in first.values())
+
+
+def test_fresh_adapters_start_from_the_runs_seed_whatever_ran_before(setup):
+    # A resumed run skips finished pairs, so the work done before a pair's adaptation differs
+    # from an uninterrupted run's. A pair's fresh adapters must depend on the seed alone.
+    model, cells, pools, tasks = setup
+    cls_base = {k: v.clone() for k, v in model.cls.state_dict().items()}
+    runs = []
+    for earlier in (1, 2):
+        torch.manual_seed(earlier)  # stands in for whatever drew random numbers before
+        runs.append([h["loss"] for h in adapt(model, cells, tasks, pools, CONFIG, cls_base=cls_base)["history"]])
+
+    assert runs[0] == runs[1]

@@ -80,6 +80,7 @@ def adapt(model, cells, tasks, pools, config: AdaptConfig, cls_base=None, device
     `monitor(model)`, if given, returns a dict of measurements (e.g. task_losses on held-out
     tasks). It runs in eval mode before the first step, every `monitor_every` steps and after
     the last, and the training run is the same as without it."""
+    torch.manual_seed(config.seed)  # before the reset: fresh adapters depend on the seed alone
     adapters = lora_modules(model)
     if adapter_init is None:
         for layer in adapters:
@@ -98,7 +99,6 @@ def adapt(model, cells, tasks, pools, config: AdaptConfig, cls_base=None, device
         optimizer, lambda step: lr_factor(step, config.steps, warmup_steps, config.schedule)
     )
     rng = np.random.default_rng(config.seed)
-    torch.manual_seed(config.seed)
     if str(device).startswith("cuda"):
         torch.cuda.reset_peak_memory_stats()
 
