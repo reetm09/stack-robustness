@@ -118,7 +118,10 @@ def main() -> None:
     backed = ad.read_h5ad(args.norman, backed="r")
     condition = backed.obs["perturbation"].astype(str).str.replace("_", "+", regex=False).to_numpy()
     rows = np.flatnonzero(np.isin(condition, conditions))
-    raw = sparse.csc_matrix(backed.X[:]).tocsr()[rows]
+    blocks = []  # read the column-major matrix in column blocks, keeping only these rows
+    for start in range(0, backed.n_vars, 4000):
+        blocks.append(sparse.csc_matrix(backed.X[:, start : start + 4000]).tocsr()[rows])
+    raw = sparse.hstack(blocks).tocsr()
     norman_genes = list(backed.var_names)
     backed.file.close()
     theirs = arc_align(raw, norman_genes, vocab)
