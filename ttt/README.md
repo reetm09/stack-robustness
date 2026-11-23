@@ -85,7 +85,8 @@ Raw scoring charges this shift to STACK, and an adapter can "improve" just by le
 - `query`: the query cells unchanged, with no model. In one order (`query_one`) this is
   B's own measured profile, which STACK should not get credit for. The both-orders row
   averages A's and B's profiles, so its change from control is roughly half the additive
-  prediction, and its correlations nearly match the additive baseline's.
+  prediction. Its Pearson Δctrl nearly matches the additive baseline's, since that
+  correlation ignores scale; Δpert does not (0.666 against 0.792 in the pilot).
 - `nulladapt_*`: one adapter trained only on control → control. It also learns "zero
   effect", so it is a biased control in raw space; read it on the diff rows.
 
