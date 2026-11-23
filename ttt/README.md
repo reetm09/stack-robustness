@@ -71,8 +71,37 @@ What is known about the cause:
   (84%) is in genes with current symbols, such as MALAT1, the hemoglobins, B2M and ACTG1.
 - Mapping 713 renamed Norman genes into vocabulary slots they were missing from
   (`stack_robustness.genes.vocabulary_aliases`) does not change it.
-- Neither this pipeline nor gene naming is ruled out. The next check is to reconstruct
-  Arc's own tutorial data (`Stack-DrugPBMC-Example`) through the same code.
+- This pipeline is not the cause. `scripts/pipeline_check.py` (output in
+  `results/ttt/pipeline_check/`) finds it identical to Arc's own code:
+  - the same weights (largest difference 0.0);
+  - the same Norman count matrix (13,815 cells, no column differs);
+  - the same generated cells for the same seed, on Norman and on Arc's tutorial data
+    (`Stack-DrugPBMC-Example`).
+- STACK shifts Arc's tutorial data too, but less. In both checks below (T = 1), STACK generates
+  the query cells, and the generated profile is compared with the query cells' observed
+  profile. The query cells are untreated, so the two should agree.
+
+  | data | prompt | query | correlation | genes shifted by more than 0.5 |
+  |---|---|---|---|---|
+  | Norman | control K562 cells | other control K562 cells | 0.84 | 234 |
+  | tutorial PBMCs | DMSO T cells | DMSO myeloid and B cells | 0.95 | 77 |
+
+  STACK was aligned partly on PBMCs; K562 leukemia cells are further from what it has
+  seen. The same histone symbols collapse in the tutorial data (H3F3A, H3F3B and H2AFZ go
+  to about 0), so that part is STACK's whatever the data.
+- On the tutorial's own task, STACK about ties a baseline with no model. The task is to
+  predict each drug's effect on myeloid and B cells from drug-treated T cells (T = 5, as
+  Arc's CLI). The baseline copies the effect the T cells show.
+
+  | over 14 drugs (median) | STACK | copy the T cells' effect |
+  |---|---|---|
+  | Pearson correlation | 0.41 | 0.39 |
+  | Pearson correlation, each drug's top 200 genes | 0.52 | 0.58 |
+
+  STACK does better on 6 of 14 drugs by correlation, and on 4 of 14 on the top 200 genes.
+  STACK is scored here as the tutorial's synthetic control does: generated with the drug
+  prompt minus generated with a DMSO prompt. Without that subtraction its correlation
+  falls to 0.27, and it is worse on 11 of 14 drugs.
 
 Raw scoring charges this shift to STACK, and an adapter can "improve" just by learning it.
 `norman_compare.py` therefore reports, side by side:
