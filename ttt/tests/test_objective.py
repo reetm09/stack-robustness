@@ -57,3 +57,18 @@ def test_the_objective_trains_the_adapters(tiny_model, tiny_counts):
     ttt_loss(tiny_model, observed, truth, n_kept=N_KEPT, teacher=teacher)["loss"].backward()
 
     assert all(a.lora_B.grad is not None and a.lora_B.grad.abs().sum() > 0 for a in adapters)
+
+
+def test_eval_mode_changes_nothing_in_the_loss_but_dropout(tiny_model, tiny_counts):
+    # The validation loss curve is measured in eval mode. With dropout off (the tiny model's
+    # dropout is 0), the teacher and every component must equal the training-mode objective.
+    observed, truth = tiny_counts
+    out = {}
+    for training in (True, False):
+        tiny_model.train(training)
+        torch.manual_seed(7)
+        teacher = teacher_embeddings(tiny_model, truth)
+        out[training] = ttt_loss(tiny_model, observed, truth, n_kept=N_KEPT, teacher=teacher)
+
+    for name in COMPONENTS + ["loss"]:
+        assert out[False][name].item() == out[True][name].item(), name
