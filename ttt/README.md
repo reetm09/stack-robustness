@@ -37,8 +37,10 @@ dibs submit --cpus 4 --mem 8G --vram 6G --time 30m -- uv run python scripts/norm
   sliced Wasserstein and the f_CLS loss, each weighted. A test checks it equals upstream
   `forward` under the same seed.
 - `tasks.py`, `windows.py` and `norman.py` build the tasks and windows. Single
-  perturbations' cells are split into disjoint "adapt" and "infer" halves, so adaptation
-  never sees the cells a prediction starts from.
+  perturbations' cells are split into disjoint "adapt" and "infer" halves. Neighbour
+  tasks draw on the adapt halves and prediction starts from the infer halves, so no task
+  pairs the cells a prediction starts from with a target. The held-out double's own
+  infer cells enter adaptation only through masked reconstruction, as the spec allows.
 - `adapt.py` is the TTT loop: fresh adapters, AdamW, base model frozen.
 - `predict.py` runs STACK's own iterative generation (T steps), turns generated cells
   into log-normalized profiles, and does the median-of-medians aggregation.
@@ -80,8 +82,10 @@ Raw scoring charges this shift to STACK, and an adapter can "improve" just by le
   applies whatever the prompt. It is consistent with Cell-Eval's predicted effect
   (predicted minus predicted control) if the predicted controls are generated too.
   Under diff scoring, report the margin over `query`.
-- `query`: the query cells unchanged, with no model. For a double this is B's own
-  measured effect, which STACK should not get credit for.
+- `query`: the query cells unchanged, with no model. In one order (`query_one`) this is
+  B's own measured profile, which STACK should not get credit for. The both-orders row
+  averages A's and B's profiles, so its change from control is roughly half the additive
+  prediction, and its correlations nearly match the additive baseline's.
 - `nulladapt_*`: one adapter trained only on control → control. It also learns "zero
   effect", so it is a biased control in raw space; read it on the diff rows.
 
@@ -99,9 +103,10 @@ prompt cells. JUN+CEBPA has only 54 cells.
 Built and unit-tested: everything above.
 
 Pilot (`results/ttt/norman_pilot3`): 3 held-out doubles, default STACK loss weights, no
-tuning. It is a pipeline and cost check, not a result. Per double, frozen prediction takes
-2 to 20 s and 50 adaptation steps about 15 s, with 1.5 GB of GPU memory for adaptation
-and 3.1 GB at peak. On these 3 doubles, no STACK variant beats the unchanged query cells
+tuning. It is a pipeline and cost check, not a result. Per double, frozen prediction (both
+orders, 2 draws, with the control-prompt runs) takes 4 to 8 s at T=1 and 15 to 32 s at
+T=5, and 50 adaptation steps about 13 s, with 1.5 GB of GPU memory for adaptation and
+3.1 GB at peak. On these 3 doubles, no STACK variant beats the unchanged query cells
 or the additive baseline, frozen or adapted, raw or diff. The null-only adapter matches
 most of TTT's raw-MSE gain, so that gain is largely fitting STACK to the dataset.
 
