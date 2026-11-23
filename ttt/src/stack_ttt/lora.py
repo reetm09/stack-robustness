@@ -71,6 +71,21 @@ def lora_modules(model: nn.Module) -> list:
     return [m for m in model.modules() if isinstance(m, LoRALinear)]
 
 
+def adapter_state(model: nn.Module) -> list:
+    """A copy of every adapter's (A, B), in module order, for load_adapter_state."""
+    return [(layer.lora_A.detach().clone(), layer.lora_B.detach().clone()) for layer in lora_modules(model)]
+
+
+def load_adapter_state(model: nn.Module, state) -> None:
+    layers = lora_modules(model)
+    if len(layers) != len(state):
+        raise ValueError(f"{len(state)} saved adapters for {len(layers)} in the model")
+    with torch.no_grad():
+        for layer, (a, b) in zip(layers, state):
+            layer.lora_A.copy_(a)
+            layer.lora_B.copy_(b)
+
+
 @contextmanager
 def adapters_disabled(model: nn.Module):
     """Run the base model (e.g. as the frozen teacher) with every adapter switched off."""

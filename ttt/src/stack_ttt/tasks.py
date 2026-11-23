@@ -9,6 +9,7 @@ held-out double A+B the tasks are:
   masked reconstruction only, since their joint target is what we must predict.
 """
 
+import zlib
 from dataclasses import dataclass
 from typing import Optional
 
@@ -29,11 +30,35 @@ def neighbours(double: str, train_doubles) -> list:
     return [d for d in train_doubles if genes & set(d.split("+"))]
 
 
+def shared_tasks(train_doubles, null: bool = False) -> list:
+    """Every training double in both prompt orders: the tasks of one shared adapter, the
+    spec's context-level adapter and Study 2's fine-tuned STACK."""
+    tasks = [task for double in train_doubles for task in _both_orders(double)]
+    return tasks + ([Task(CONTROL, CONTROL, CONTROL)] if null else [])
+
+
 def norman_tasks(double: str, train_doubles, null: bool = False) -> list:
-    tasks = []
-    for neighbour in neighbours(double, train_doubles):
-        a, b = neighbour.split("+")
-        tasks += [Task(a, b, neighbour), Task(b, a, neighbour)]
+    return _instance_tasks(double, neighbours(double, train_doubles), null)
+
+
+def random_tasks(double: str, train_doubles, seed: int, null: bool = False) -> list:
+    """norman_tasks with the neighbours swapped for as many random training doubles that share
+    no gene with `double`: the control showing whether choosing neighbours matters."""
+    genes = set(double.split("+"))
+    unrelated = [d for d in train_doubles if not genes & set(d.split("+"))]
+    k = min(len(neighbours(double, train_doubles)), len(unrelated))
+    rng = np.random.default_rng([seed, zlib.crc32(double.encode())])
+    chosen = sorted(rng.choice(unrelated, size=k, replace=False).tolist()) if k else []
+    return _instance_tasks(double, chosen, null)
+
+
+def _both_orders(double: str) -> list:
+    a, b = double.split("+")
+    return [Task(a, b, double), Task(b, a, double)]
+
+
+def _instance_tasks(double: str, doubles, null: bool) -> list:
+    tasks = [task for d in doubles for task in _both_orders(d)]
     if null:
         tasks.append(Task(CONTROL, CONTROL, CONTROL))
     return tasks + [Task(gene) for gene in double.split("+")]

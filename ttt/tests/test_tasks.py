@@ -73,3 +73,26 @@ def test_a_prompt_only_window_has_no_query_cells():
     observed, truth = task_window(counts, np.arange(6), None, None, 4, 4, np.random.default_rng(0))
 
     assert np.array_equal(observed, truth) and set(observed[:, 0]) <= set(range(6))
+
+
+def test_shared_tasks_use_every_training_double_in_both_orders():
+    from stack_ttt.tasks import shared_tasks
+
+    assert shared_tasks(["A+C", "D+B"], null=True) == [
+        Task("A", "C", "A+C"), Task("C", "A", "A+C"), Task("D", "B", "D+B"), Task("B", "D", "D+B"),
+        Task("control", "control", "control"),
+    ]
+
+
+def test_random_tasks_match_the_neighbour_tasks_except_for_which_doubles_they_use():
+    from stack_ttt.tasks import random_tasks
+
+    train = ["A+C", "D+B", "E+F", "G+H", "I+J", "C+D"]
+    tasks = random_tasks("A+B", train, seed=0, null=True)
+    doubles = sorted({t.target for t in tasks if t.query is not None and t.target != "control"})
+
+    assert len(doubles) == len(neighbours("A+B", train)) == 2
+    assert not set(doubles) & {"A+C", "D+B"}  # none shares a gene with A+B
+    assert tasks[-3:] == [Task("control", "control", "control"), Task("A"), Task("B")]
+    assert len(tasks) == len(norman_tasks("A+B", train, null=True))
+    assert random_tasks("A+B", train, seed=0, null=True) == tasks  # reproducible

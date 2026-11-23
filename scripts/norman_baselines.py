@@ -11,6 +11,11 @@ are STACK's vocabulary rather than 8,192 HVGs plus the perturbed genes, so 17 of
 perturbed genes are not scored.
 
     uv run python scripts/norman_baselines.py
+    uv run python scripts/norman_baselines.py --validation
+
+With --validation, the test doubles are dropped entirely and 20% of the training doubles are
+held out instead, for choosing settings without touching the test doubles. Its outputs are
+named norman2019_val_* (split "val") and results/norman_baselines_val.
 
 Inputs:  data/raw/norman/NormanWeissman2019_filtered.h5ad (scPerturb, Zenodo 13350497)
          data/raw/stack_vocab/basecount_1000per_15000max.pkl (Stack-Large-Aligned on Hugging Face)
@@ -72,27 +77,37 @@ def main() -> None:
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument("--n-hvg", type=int, default=2000)
     parser.add_argument("--min-cells", type=int, default=3, help="drop genes detected in fewer cells")
-    parser.add_argument("--out", type=Path, default=Path("results/norman_baselines"))
+    parser.add_argument("--out", type=Path, default=None, help="default results/norman_baselines[_val]")
     parser.add_argument("--splits", type=Path, default=Path("splits"))
-    parser.add_argument("--context", type=Path, default=Path("data/processed/norman2019_eval.npz"))
+    parser.add_argument("--context", type=Path, default=None, help="default data/processed/<name>_eval.npz")
+    parser.add_argument("--validation", action="store_true",
+                        help="drop the test doubles and hold out a share of the training doubles instead")
     args = parser.parse_args()
+    name, held = ("norman2019_val", "val") if args.validation else ("norman2019", "test")
+    args.out = args.out or Path("results/norman_baselines" + ("_val" if args.validation else ""))
+    args.context = args.context or Path(f"data/processed/{name}_eval.npz")
 
     adata = load_log_normalized(args.min_cells)
+    if args.validation:
+        tested = pd.read_csv(args.splits / "norman2019_conditions.csv")
+        test_doubles = tested.loc[tested["split"].eq("test"), "condition"]
+        adata = adata[~adata.obs["condition"].isin(test_doubles).to_numpy()].copy()
     genes = list(adata.var_names)
     cond = adata.obs["condition"]
     log(f"loaded {adata.n_obs} cells x {adata.n_vars} STACK genes, {cond.nunique()} conditions")
 
     split = split_conditions(cond, CONTROL, args.seed, args.test_fraction)
-    test = split.loc[split["split"] == "test", "condition"].tolist()
+    split["split"] = split["split"].replace({"test": held})
+    test = split.loc[split["split"] == held, "condition"].tolist()
     train = split.loc[split["split"] == "train", "condition"].tolist()
     halves = assign_halves(cond, seed=args.seed)
     first = (halves == "first").to_numpy()
     second = (halves == "second").to_numpy()
     is_ctrl = (cond == CONTROL).to_numpy()
     args.splits.mkdir(parents=True, exist_ok=True)
-    split.to_csv(args.splits / "norman2019_conditions.csv", index=False)
-    halves.rename("half").rename_axis("cell").to_csv(args.splits / "norman2019_halves.csv.gz")
-    log(f"{len(test)} test doubles, {len(train)} training conditions")
+    split.to_csv(args.splits / f"{name}_conditions.csv", index=False)
+    halves.rename("half").rename_axis("cell").to_csv(args.splits / f"{name}_halves.csv.gz")
+    log(f"{len(test)} held-out ({held}) doubles, {len(train)} training conditions")
 
     profiles = pseudobulk(adata.X, cond, genes)
     truth = pseudobulk(adata.X[first], cond[first], genes).loc[test]
@@ -141,8 +156,8 @@ def main() -> None:
     long = ctx.score({})
     n_train_doubles = int((split["kind"].eq("combination") & split["split"].eq("train")).sum())
     summary = [
-        f"# Norman et al. (2019) baselines, Study 2 setup (seed {args.seed})\n",
-        f"{len(test)} held-out doubles scored against their truth half; {len(train)} training conditions "
+        f"# Norman et al. (2019) baselines, Study 2 setup, {held} split (seed {args.seed})\n",
+        f"{len(test)} held-out ({held}) doubles scored against their truth half; {len(train)} training conditions "
         f"(all singles plus {n_train_doubles} doubles); {int(is_ctrl.sum())} control cells.\n",
     ]
     values, gaps = median_tables(long, "value"), median_tables(long, "gap_closed")

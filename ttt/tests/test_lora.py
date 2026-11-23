@@ -81,3 +81,21 @@ def test_injecting_into_stack_keeps_its_output_and_trains_only_the_adapters(tiny
     trainable = {n for n, p in tiny_model.named_parameters() if p.requires_grad}
     assert trainable == {f"{name}.lora_{ab}" for name in stack_targets(tiny_model, "final_block") for ab in "AB"}
     assert len(lora_modules(tiny_model)) == 4
+
+
+def test_adapter_state_is_a_copy_that_restores_every_adapter(tiny_model):
+    from stack_ttt.lora import adapter_state, load_adapter_state
+
+    inject_lora(tiny_model, stack_targets(tiny_model, "final_block"), rank=2, alpha=4.0)
+    for layer in lora_modules(tiny_model):
+        with torch.no_grad():
+            layer.lora_B.normal_()
+    saved = adapter_state(tiny_model)
+    expected = [(layer.lora_A.clone(), layer.lora_B.clone()) for layer in lora_modules(tiny_model)]
+
+    for layer in lora_modules(tiny_model):
+        layer.reset()  # changing the live adapters must not change the saved copy
+    load_adapter_state(tiny_model, saved)
+
+    for layer, (a, b) in zip(lora_modules(tiny_model), expected):
+        assert torch.equal(layer.lora_A, a) and torch.equal(layer.lora_B, b)

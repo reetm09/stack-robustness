@@ -69,3 +69,39 @@ def test_without_classifier_co_adaptation_only_adapters_change(setup):
     adapt(model, cells, tasks, pools, AdaptConfig(steps=3, lr=1e-2, n_cells=16, n_kept=4, train_cls=False))
 
     assert all(torch.equal(v, cls_before[k]) for k, v in model.cls.state_dict().items())
+
+
+def test_adapt_can_start_from_saved_adapters_instead_of_fresh_ones(setup):
+    from stack_ttt.lora import adapter_state
+
+    model, cells, pools, tasks = setup
+    for layer in lora_modules(model):
+        torch.nn.init.ones_(layer.lora_B)
+    start = adapter_state(model)
+    for layer in lora_modules(model):
+        layer.reset()
+
+    adapt(model, cells, tasks, pools, AdaptConfig(steps=0, n_cells=16, n_kept=4), adapter_init=start)
+
+    assert all(torch.equal(layer.lora_B, torch.ones_like(layer.lora_B)) for layer in lora_modules(model))
+
+
+def test_cosine_schedule_warms_up_linearly_then_decays_to_zero():
+    from stack_ttt.adapt import lr_factor
+
+    # torchtune's get_cosine_schedule_with_warmup, which Akyurek et al.'s TTT recipe uses
+    assert lr_factor(0, total=10, warmup_steps=2, schedule="cosine") == 0.0
+    assert lr_factor(1, total=10, warmup_steps=2, schedule="cosine") == pytest.approx(0.5)
+    assert lr_factor(2, total=10, warmup_steps=2, schedule="cosine") == pytest.approx(1.0)
+    assert lr_factor(6, total=10, warmup_steps=2, schedule="cosine") == pytest.approx(0.5)
+    assert lr_factor(10, total=10, warmup_steps=2, schedule="cosine") == pytest.approx(0.0)
+    assert lr_factor(7, total=10, warmup_steps=2, schedule="constant") == 1.0
+
+
+def test_adapt_follows_the_schedule_and_records_the_learning_rate(setup):
+    model, cells, pools, tasks = setup
+    config = AdaptConfig(steps=10, lr=1e-2, n_cells=16, n_kept=4, schedule="cosine", warmup=0.2)
+
+    history = adapt(model, cells, tasks, pools, config)["history"]
+
+    assert [h["lr"] for h in history] == pytest.approx([1e-2 * f for f in [0, 0.5, 1, 0.962, 0.854, 0.691, 0.5, 0.309, 0.146, 0.038]], abs=1e-3)
