@@ -94,3 +94,19 @@ def test_generate_returns_one_generated_cell_per_query_cell(tiny_model, tmp_path
     assert out.shape == (12, len(GENES))
     dense = out.toarray()
     assert (dense >= 0).all() and np.allclose(dense, np.round(dense))
+
+
+@pytest.mark.parametrize("n_query, num_steps", [(2, 1), (3, 2)])
+def test_generation_handles_query_sets_smaller_than_half_a_window(tiny_model, tmp_path, n_query, num_steps):
+    # arc-stack 0.1.3 pads a short query set with at most one copy of itself, so with fewer
+    # query cells than half a window's query slots (here 5 at T=1, 8 at the first of 2 steps)
+    # the window comes up short and its own bookkeeping raises IndexError.
+    genelist = tmp_path / "genes.pkl"
+    genelist.write_bytes(pickle.dumps(GENES))
+    rng = np.random.default_rng(0)
+    prompt = sparse.csr_matrix(rng.poisson(4.0, size=(30, len(GENES))).astype(np.float32))
+    query = sparse.csr_matrix(rng.poisson(2.0, size=(n_query, len(GENES))).astype(np.float32))
+
+    out = generate(tiny_model, prompt, query, GENES, genelist, num_steps=num_steps, seed=0)
+
+    assert out.shape == (n_query, len(GENES))

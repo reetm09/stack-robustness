@@ -48,6 +48,15 @@ def generate(
     "mdm" mode, num_steps = T). `prompt` and `query` are cells x genes counts in the
     order of `genes`, STACK's vocabulary. Returns sampled counts, one row per query cell.
     """
+    # arc-stack 0.1.3 fills a short window with at most one more copy of the query cells
+    # (get_incontext_prediction: pad = test_indices[:need]), so a query set smaller than half
+    # a window's query slots leaves the window short and raises IndexError. Repeat such a set
+    # until it fills a window; the first copy's generated cells are returned.
+    n_query = query.shape[0]
+    ratios = [context_ratio] if num_steps == 1 else [context_ratio_min, context_ratio]
+    slots = max(max(1, int(model.n_cells * (1 - prompt_ratio - r))) for r in ratios)
+    if 2 * n_query < slots:
+        query = sparse.vstack([sparse.csr_matrix(query)] * -(-slots // n_query))
     # arc-stack calls np.char.upper on var_names, which fails on pandas 3's string arrays.
     var = pd.DataFrame(index=pd.Index(list(genes), dtype=object))
     base = ad.AnnData(X=sparse.csr_matrix(prompt, dtype=np.float32), var=var)
@@ -68,7 +77,7 @@ def generate(
             num_workers=0,
             random_seed=seed,
         )
-    return sparse.csr_matrix(out[0] if isinstance(out, tuple) else out)
+    return sparse.csr_matrix(out[0] if isinstance(out, tuple) else out)[:n_query]
 
 
 def mean_log_profile(counts, library, genes, panel) -> pd.Series:

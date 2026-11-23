@@ -101,7 +101,7 @@ def main() -> None:
     parser.add_argument("--pbmc", type=Path, default=ROOT / "data/raw/arc_example/openproblems_donor1.h5ad")
     parser.add_argument("--norman", type=Path, default=ROOT / "data/raw/norman/NormanWeissman2019_filtered.h5ad")
     parser.add_argument("--n-control", type=int, default=2000, help="Norman control cells per prompt and query")
-    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--out", type=Path, default=ROOT / "results/ttt/pipeline_check")
     args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
