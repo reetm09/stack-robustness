@@ -15,6 +15,8 @@ from typing import Optional
 
 import numpy as np
 
+from .norman import single_pools
+
 CONTROL = "control"
 
 
@@ -71,6 +73,13 @@ def control_pools(condition: np.ndarray, seed: int) -> dict:
     rows = np.random.default_rng(seed).permutation(np.flatnonzero(condition == CONTROL))
     roles = ("prompt", "query", "target", "infer")
     return {(CONTROL, role): part for role, part in zip(roles, np.array_split(rows, len(roles)))}
+
+
+def cell_pools(condition: np.ndarray, seed: int) -> dict:
+    """single_pools for every loaded single, plus control_pools. Doubles ("A+B") get no pool:
+    their cells are only ever targets, so loading more doubles moves no cell between pools."""
+    singles = sorted({c for c in set(condition.tolist()) if c != CONTROL and "+" not in c})
+    return single_pools(condition, singles, seed=seed) | control_pools(condition, seed=seed)
 
 
 def task_rows(task: Task, pools: dict, condition: np.ndarray):

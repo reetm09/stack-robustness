@@ -33,7 +33,10 @@ assert all(np.isfinite(v).all() for v in profiles.values()), "non-finite profile
 assert not np.allclose(profiles["icl_T1_raw"], profiles["shared_T1_raw"]), "the shared adapter changed nothing"
 if tasks["ttt"] != tasks["ttt_random"]:  # equal only when the pair has no neighbours
     assert not np.allclose(profiles["ttt_T1_raw"], profiles["ttt_random_T1_raw"]), "neighbour and random TTT agree exactly"
-print("smoke test passed:", len(profiles), "profiles")
+curve = json.loads(Path(sys.argv[1], "shared_history.json").read_text())["monitor"]
+assert [m["step"] for m in curve] == [0, 6], [m["step"] for m in curve]
+assert all(np.isfinite(m[k]) for m in curve for k in ("train_loss", "val_loss")), curve
+print("smoke test passed:", len(profiles), "profiles; loss on fixed windows", curve)
 EOF
 
 for scope in final_block all_cross_cell; do

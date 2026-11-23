@@ -19,6 +19,11 @@ doubles. Single-perturbation cells are split into "adapt" and "infer" halves; tr
 on "adapt" and predictions start from "infer". Each pair is saved when it finishes
 (pairs/<double>.npz), so rerunning the same command resumes.
 
+In the validation run, training the shared adapter also records, every 200 steps, its loss on
+fixed windows of the validation doubles and of as many training doubles (shared_history.json).
+This is a diagnostic for the report's loss curves, not a selection rule (PROTOCOL.md). It is
+the only use of the validation doubles' cells; the test run never loads the test doubles.
+
     uv run python scripts/norman_ttt.py --holdout val --arms shared --out ../results/ttt/val/shared
 """
 
@@ -34,12 +39,12 @@ import torch
 
 from stack_robustness.evaluation import EvalContext, markdown_table, median_tables
 from stack_robustness.genes import load_stack_genes
-from stack_ttt.adapt import AdaptConfig, adapt
+from stack_ttt.adapt import AdaptConfig, adapt, task_losses
 from stack_ttt.lora import adapter_state, adapters_disabled, inject_lora, load_adapter_state, stack_targets
 from stack_ttt.model import load_stack
-from stack_ttt.norman import load_norman, single_pools
+from stack_ttt.norman import load_norman
 from stack_ttt.predict import predict_double
-from stack_ttt.tasks import CONTROL, control_pools, neighbours, norman_tasks, random_tasks, shared_tasks
+from stack_ttt.tasks import CONTROL, cell_pools, neighbours, norman_tasks, random_tasks, shared_tasks
 
 ROOT = Path(__file__).resolve().parents[2]
 ARMS = ["icl", "shared", "ttt", "ttt_random", "shared_ttt", "shared_ttt_random"]
@@ -110,10 +115,11 @@ def main() -> None:
 
     singles = sorted(split.loc[split["kind"].eq("single"), "condition"])
     vocab = load_stack_genes(args.vocab)
-    cells = load_norman(args.raw, vocab, conditions=set(singles) | set(train_doubles) | {CONTROL})
-    assert not set(cells.condition) & set(held_out), "held-out doubles must never be loaded"
-    present = sorted(set(cells.condition) - {CONTROL} - set(train_doubles))
-    pools = single_pools(cells.condition, present, seed=args.seed) | control_pools(cells.condition, seed=args.seed)
+    monitored = held_out if args.holdout == "val" else []  # only for the validation loss curve
+    cells = load_norman(args.raw, vocab, conditions=set(singles) | set(train_doubles) | {CONTROL} | set(monitored))
+    assert not set(cells.condition) & (set(held_out) - set(monitored)), "test doubles must never be loaded"
+    pools = cell_pools(cells.condition, seed=args.seed)
+    assert not {key[0] for key in pools} & set(held_out), "held-out cells must never be pooled"
     reference = pools[(CONTROL, "infer")]
     panel = list(ctx.truth.columns)
     log(f"loaded {cells.counts.shape[0]} cells")
@@ -143,16 +149,33 @@ def main() -> None:
             log(f"loaded the shared adapter from {path}")
         else:
             tasks = shared_tasks(train_doubles, null=null)
-            result = adapt(model, cells, tasks, pools, config(args.shared_steps, args.shared_lr),
-                           cls_base=cls_frozen, device=device)
+            assert not {t.target for t in tasks} & set(held_out), "held-out doubles must never be trained on"
+            shared_config = config(args.shared_steps, args.shared_lr)
+            monitor = None
+            if monitored:
+                probe = sorted(np.random.default_rng(args.seed).choice(train_doubles, len(monitored), replace=False).tolist())
+                probes = {"train": shared_tasks(probe), "val": shared_tasks(monitored)}
+
+                def monitor(m):
+                    return {f"{name}_{k}": v for name, probe_tasks in probes.items()
+                            for k, v in task_losses(m, cells, probe_tasks, pools, shared_config, device).items()}
+
+            result = adapt(model, cells, tasks, pools, shared_config, cls_base=cls_frozen, device=device,
+                           monitor=monitor, monitor_every=200)
             shared = adapter_state(model)
             cls_shared = {k: v.clone() for k, v in model.cls.state_dict().items()}
             torch.save({"adapters": shared, "cls": cls_shared, "settings": settings}, path)
             (args.out / "shared_history.json").write_text(json.dumps(
                 {"seconds": result["seconds"], "loss": [h["loss"] for h in result["history"]],
-                 "lr": [h["lr"] for h in result["history"]]}))
+                 "lr": [h["lr"] for h in result["history"]],
+                 "monitor": result["monitor"], "monitor_seconds": result["monitor_seconds"]}))
             log(f"trained the shared adapter on {len(tasks)} tasks in {result['seconds']:.0f}s; "
                 f"loss {loss_summary(result['history'])}")
+            if result["monitor"]:
+                first, last = result["monitor"][0], result["monitor"][-1]
+                log(f"loss on fixed windows, step 0 -> {last['step']}: validation doubles "
+                    f"{first['val_loss']:.3f} -> {last['val_loss']:.3f}, training doubles "
+                    f"{first['train_loss']:.3f} -> {last['train_loss']:.3f} ({result['monitor_seconds']:.0f}s)")
 
     for double in doubles:
         target = args.out / "pairs" / f"{double}.npz"
@@ -185,6 +208,7 @@ def main() -> None:
                 tasks = random_tasks(double, train_doubles, seed=args.seed, null=null)
             else:
                 tasks = norman_tasks(double, train_doubles, null=null)
+            assert not {t.target for t in tasks} & set(held_out), "held-out doubles must never be trained on"
             start = shared if arm.startswith("shared") else None
             result = adapt(model, cells, tasks, pools, config(args.ttt_steps, args.ttt_lr),
                            cls_base=cls_shared if start is not None else cls_frozen, device=device,

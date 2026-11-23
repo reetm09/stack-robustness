@@ -5,8 +5,8 @@ import pytest
 import torch
 from scipy import sparse
 
-from stack_ttt.adapt import AdaptConfig, adapt
-from stack_ttt.lora import inject_lora, lora_modules, stack_targets
+from stack_ttt.adapt import COMPONENTS, AdaptConfig, adapt, task_losses
+from stack_ttt.lora import adapters_disabled, inject_lora, lora_modules, stack_targets
 from stack_ttt.norman import Cells, single_pools
 from stack_ttt.tasks import control_pools, norman_tasks
 
@@ -105,3 +105,60 @@ def test_adapt_follows_the_schedule_and_records_the_learning_rate(setup):
     history = adapt(model, cells, tasks, pools, config)["history"]
 
     assert [h["lr"] for h in history] == pytest.approx([1e-2 * f for f in [0, 0.5, 1, 0.962, 0.854, 0.691, 0.5, 0.309, 0.146, 0.038]], abs=1e-3)
+
+
+def test_the_monitor_runs_in_eval_mode_before_training_every_n_steps_and_at_the_end(setup):
+    model, cells, pools, tasks = setup
+    modes = []
+
+    def monitor(m):
+        modes.append(m.training)
+        return {"x": 1.0}
+
+    result = adapt(model, cells, tasks, pools, AdaptConfig(steps=5, lr=1e-2, n_cells=16, n_kept=4),
+                   monitor=monitor, monitor_every=2)
+
+    assert [r["step"] for r in result["monitor"]] == [0, 2, 4, 5]
+    assert modes == [False] * 4
+    assert len(result["history"]) == 5 and not model.training
+
+
+def test_the_monitor_leaves_the_training_run_unchanged(setup):
+    model, cells, pools, tasks = setup
+    cls_base = {k: v.clone() for k, v in model.cls.state_dict().items()}
+
+    def draws(m):  # takes numbers from torch's global generator, as the masking in the loss does
+        torch.rand(100)
+        return {}
+
+    torch.manual_seed(7)  # fresh adapters start from a random A
+    plain = adapt(model, cells, tasks, pools, CONFIG, cls_base=cls_base)["history"]
+    torch.manual_seed(7)
+    watched = adapt(model, cells, tasks, pools, CONFIG, cls_base=cls_base, monitor=draws, monitor_every=1)["history"]
+
+    assert [h["loss"] for h in watched] == [h["loss"] for h in plain]
+
+
+def test_the_first_measurement_is_of_the_starting_model(setup):
+    model, cells, pools, tasks = setup
+    cls_base = {k: v.clone() for k, v in model.cls.state_dict().items()}
+    with adapters_disabled(model):  # fresh adapters (B = 0) leave the base model unchanged
+        expected = task_losses(model, cells, tasks, pools, CONFIG)
+
+    result = adapt(model, cells, tasks, pools, CONFIG, cls_base=cls_base,
+                   monitor=lambda m: task_losses(m, cells, tasks, pools, CONFIG), monitor_every=2)
+
+    first, last = result["monitor"][0], result["monitor"][-1]
+    assert {k: first[k] for k in expected} == pytest.approx(expected, rel=1e-6)
+    assert last["step"] == CONFIG.steps and last["loss"] != pytest.approx(first["loss"], rel=1e-6)
+
+
+def test_task_losses_repeat_exactly_and_leave_the_global_generator_alone(setup):
+    model, cells, pools, tasks = setup
+    state = torch.get_rng_state()
+
+    first = task_losses(model, cells, tasks, pools, CONFIG)
+
+    assert torch.equal(torch.get_rng_state(), state)
+    assert task_losses(model, cells, tasks, pools, CONFIG) == first
+    assert set(first) == set(COMPONENTS) and all(math.isfinite(v) for v in first.values())

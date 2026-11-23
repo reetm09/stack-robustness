@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from stack_ttt.tasks import Task, control_pools, neighbours, norman_tasks, task_rows
+from stack_ttt.tasks import Task, cell_pools, control_pools, neighbours, norman_tasks, task_rows
 from stack_ttt.windows import pick, task_window
 
 TRAIN = ["A+C", "D+B", "E+F", "C+D"]
@@ -42,6 +42,24 @@ def test_task_rows_keep_adaptation_and_inference_cells_apart():
     assert len(p) == len(q) == len(t) == len(reference) == 3
     parts = [set(p), set(q), set(t), set(reference)]
     assert all(not (x & y) for i, x in enumerate(parts) for y in parts[i + 1:])
+
+
+def test_cell_pools_give_doubles_none_so_loading_more_doubles_moves_no_cell():
+    # The validation run also loads its held-out doubles' cells, to measure a validation
+    # loss. They must get no pool, and every single's adapt/infer split and the control
+    # pools must keep the very same cells. load_norman keeps file order, so new rows land
+    # between the old ones without reordering them.
+    rng = np.random.default_rng(0)
+    base = rng.permutation(np.array(["A"] * 9 + ["C"] * 7 + ["A+C"] * 5 + ["control"] * 12))
+    where = np.sort(rng.choice(len(base) + 1, size=10))
+    more = np.insert(base, where, "A+B")
+    cell = np.insert(np.arange(len(base)), where, -1)  # each row's cell in `base`; -1 for new ones
+
+    before, after = cell_pools(base, seed=0), cell_pools(more, seed=0)
+
+    assert sorted(after) == sorted(before)
+    assert all(cell[after[key]].tolist() == before[key].tolist() for key in before)
+    assert not {key[0] for key in after} & {"A+C", "A+B"}
 
 
 def test_pick_draws_without_replacement_when_the_pool_is_big_enough():

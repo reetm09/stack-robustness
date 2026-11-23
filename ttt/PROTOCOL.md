@@ -130,4 +130,28 @@ Each prediction uses 2 draws.
 
 ## Changes after this point
 
-None yet.
+Neither change below was made after seeing any validation score.
+
+- **2026-11-22: a workaround for small query sets.** arc-stack 0.1.3 fills a short
+  window with at most one extra copy of the query cells. A query set smaller than half
+  a window's query slots therefore raised IndexError; one validation pair has 81 infer
+  cells. `predict.generate` now repeats such a set until it fills a window and keeps the
+  first copy's generated cells. Larger query sets run exactly as before.
+- **2026-11-23: a validation loss curve for the shared adapter.** The course report asks
+  for training and validation loss curves (as the `182-clear-research-paper` skill reads
+  the course rules). In the validation run, training the shared adapter now records its
+  loss every 200 steps, in eval mode, on fixed windows:
+  - one window per task of the 21 validation doubles, in both orders;
+  - the same for 21 training doubles chosen with the run's seed, as a comparable
+    training curve.
+
+  The training run is the same with or without the curve, because the curve's random
+  draws are kept apart from training's (tested).
+
+  The validation doubles' cells are loaded for this curve only. No pool or training task
+  may use them (asserted), and the test run still never loads the test doubles.
+
+  The curve is a diagnostic, not a selection or early-stopping rule. The 2,000 steps and
+  the wMSE selection rule stand. The first setting (final block, 1e-4) is rerun from
+  scratch so that all four settings have the curve; its earlier adapter and 20 pairs
+  were set aside unscored.
