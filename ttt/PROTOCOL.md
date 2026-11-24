@@ -107,6 +107,11 @@ Each prediction uses 2 draws.
   correlation across pairs between the TTT gain in wMSE (`shared` minus `shared_ttt`, and
   `icl` minus `ttt`) and the additive baseline's wMSE.
 - **Cost:** seconds per pair and arm, and peak GPU memory.
+- **Prompt use (exploratory, added with version 2 before any test result).** For each arm
+  and each pair in both prompt orders, take the shift that replacing the control prompt with
+  A's cells causes. Report its correlation with A's own effect on A's top 200 genes, and its
+  size relative to that effect (`stack_ttt.diagnostics.prompt_use`; README, "What frozen
+  STACK does with a Norman prompt").
 
 ## What does not port from Akyürek et al.'s code, and what replaces it
 

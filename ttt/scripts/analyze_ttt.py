@@ -5,13 +5,18 @@
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
+from stack_robustness.evaluation import EvalContext
 from stack_robustness.stats import paired_summary
+from stack_ttt.diagnostics import prompt_use
+
+ROOT = Path(__file__).resolve().parents[2]
 
 PILOT = ["AHR+FEV", "AHR+KLF1", "BPGM+SAMD1"]
 NON_ADDITIVE = ["DUSP9+SNAI1", "DUSP9+PRTG", "JUN+CEBPA", "AHR+FEV", "KLF1+COL2A1", "CBL+PTPN12",
@@ -28,6 +33,22 @@ def wide(scores: pd.DataFrame, metric: str = METRIC, panel: str = PANEL) -> pd.D
     """Pairs x models table of one metric on one panel."""
     s = scores[(scores["metric"] == metric) & (scores["panel"] == panel)]
     return s.pivot_table(index="perturbation", columns="model", values="value")
+
+
+def prompt_use_table(run: Path, arms, t: int) -> pd.DataFrame:
+    """stack_ttt.diagnostics.prompt_use for every saved pair, prompt order and arm."""
+    holdout = json.loads((run / "args.json").read_text())["holdout"]
+    ctx = EvalContext.load(ROOT / f"data/processed/norman2019{'_val' if holdout == 'val' else ''}_eval.npz")
+    genes = list(ctx.truth.columns)
+    ctrl = ctx.ctrl[genes].to_numpy()
+    rows = []
+    for f in sorted((run / "pairs").glob("*.npz")):
+        z = np.load(f)
+        assert list(z["genes"]) == genes, f"{f} is not on the scoring genes"
+        profiles = dict(zip(z["names"], z["values"]))
+        rows += [{"arm": arm, "pair": f.stem, **o} for arm in arms if f"{arm}_T{t}_diff_one" in profiles
+                 for o in prompt_use(profiles, ctrl, arm, steps=t)]
+    return pd.DataFrame(rows)
 
 
 def fmt(x: float) -> str:
@@ -97,6 +118,20 @@ def main() -> None:
     if t5 and args.t != 5:
         lines += ["\n## T = 5 against T = 1 (median wMSE, all pairs)\n", "| arm | T = 1 | T = 5 |", "|---|---|---|"]
         lines += [f"| {a} | {fmt(w[key[a]].median())} | {fmt(w[f'{a}_T5_diff'].median())} |" for a in t5]
+
+    use = prompt_use_table(run, arms, args.t)
+    if not use.empty:
+        lines += [f"\n## Prompt use (exploratory, T = {args.t})\n",
+                  "Replacing the control prompt with A's cells shifts the prediction. For each pair and prompt "
+                  "order: the correlation of that shift with A's own effect on A's top 200 genes (r), and the "
+                  "shift's size relative to that effect.\n",
+                  "| arm | pair-orders | median r | r above +0.3 | r below -0.3 | median relative size |",
+                  "|---|---|---|---|---|---|"]
+        for arm in arms:
+            u = use[use["arm"] == arm]
+            if len(u):
+                lines.append(f"| {arm} | {len(u)} | {u.r.median():+.2f} | {(u.r > 0.3).sum()} | {(u.r < -0.3).sum()} | "
+                             f"{u.relative_size.median():.2f} |")
 
     lines += ["\n## Secondary metrics (median over all pairs, diff-scored, T = 1)\n"]
     for panel in sorted(scores["panel"].unique()):
