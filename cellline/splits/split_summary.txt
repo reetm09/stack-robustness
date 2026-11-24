@@ -1,0 +1,4 @@
+18319 targets: 8805 train, 1887 val, 1887 test, 5740 excluded
+HEK293T controls in 223 batches: 153188 train, 32825 val, 32825 test
+HCT116 controls in 109 batches: 116045 train, 24866 val, 24866 test
+wrote cellline/splits/xatlas_orion

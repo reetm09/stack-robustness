@@ -157,3 +157,46 @@ Two cautions:
 ```bash
 uv run pytest   # once ../ttt and the shared package are on this branch
 ```
+
+## The X-Atlas/Orion split (run 2026-11-23)
+
+`cellline/splits/xatlas_orion/` is the Study 1 split, built once from the real data with the
+default settings (70/15/15, seed 0, at least 100 cells per line).
+
+**Data source.** Hugging Face `Xaira-Therapeutics/X-Atlas-Orion`: 332 parquet files, one per
+GEM batch (`data/<LINE>_Batch<N>.parquet`), about 130 GB in total. There is no cell-line
+column; the line comes from the file name. `scripts/fetch_xatlas_obs.py` reads only the
+per-cell metadata columns (not the expression columns) and writes one table per line:
+
+```bash
+python cellline/scripts/fetch_xatlas_obs.py <out_dir>   # needs pandas, pyarrow, huggingface_hub
+```
+
+**Split command.**
+
+```bash
+PYTHONPATH=cellline/src python -m stack_cellline.split \
+    --obs HEK293T=<out_dir>/HEK293T_obs.parquet HCT116=<out_dir>/HCT116_obs.parquet \
+    --cell-id-col cell_barcode --gene-col gene_target --batch-col sample \
+    --guide-col guide_target --control-label Non-Targeting \
+    --lines HEK293T HCT116 --out cellline/splits/xatlas_orion
+```
+
+**Result** (`splits/split_summary.txt`):
+
+```
+18319 targets: 8805 train, 1887 val, 1887 test, 5740 excluded
+HEK293T controls in 223 batches: 153188 train, 32825 val, 32825 test
+HCT116 controls in 109 batches: 116045 train, 24866 val, 24866 test
+```
+
+**Notes on the data** (column listing in `splits/xatlas_orion_columns.txt`):
+
+- 4,534,299 HEK293T cells and 3,409,169 HCT116 cells. Every GEM batch has non-targeting controls.
+- Every released cell already passes the guide filter (`pass_guide_filter == 1`, `num_features == 2`),
+  so no `--query` was used.
+- `guide_target` holds a guide pair as one value (e.g. `ST14_P1P2-1|ST14_P1P2-2`), so
+  `n_guides` in `genes.csv` counts guide pairs and is usually 1.
+- Excluded genes: 3,466 have fewer than 100 cells in both lines, 2,141 only in HCT116, 133 only in HEK293T.
+- Expression is stored sparsely per cell as `gene_token_id` and `gene_expression` (raw counts);
+  `metadata/gene_metadata.parquet` maps token IDs to Ensembl IDs and gene symbols.

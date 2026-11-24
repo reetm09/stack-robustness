@@ -1,0 +1,44 @@
+===== HEK293T_obs.parquet  (4534299 cells)
+['cell_barcode', 'sample', 'num_features', 'guide_target', 'gene_target', 'n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pass_guide_filter']
+                      cell_barcode          sample  num_features                             guide_target    gene_target  n_genes_by_counts  total_counts  pct_counts_mt  pass_guide_filter
+0  AAACCAAAGAAGTAGC-HEK293T_Batch1  HEK293T_Batch1             2            FAM180A_P1P2-1|FAM180A_P1P2-2        FAM180A               6856       24243.0       2.668812                  1
+1  AAACCAAAGAGTACGG-HEK293T_Batch1  HEK293T_Batch1             2  non-targeting_03016|non-targeting_03214  Non-Targeting               6636       20847.0       4.250012                  1
+2  AAACCAAAGAGTGGGC-HEK293T_Batch1  HEK293T_Batch1             2            PCDHGC4_P1P2-1|PCDHGC4_P1P2-2        PCDHGC4               5353       14035.0       4.346277                  1
+3  AAACCAAAGAGTGTAA-HEK293T_Batch1  HEK293T_Batch1             2                USP30_P1P2-1|USP30_P1P2-2          USP30               6358       20939.0       2.812933                  1
+4  AAACCAAAGATACGGG-HEK293T_Batch1  HEK293T_Batch1             2                KLRD1_P1P2-1|KLRD1_P1P2-2          KLRD1               5527       14083.0       3.379961                  1
+cell_barcode         4534299
+sample                   223
+num_features               1
+guide_target           20867
+gene_target            18312
+n_genes_by_counts      12327
+total_counts           95930
+pct_counts_mt        3479880
+pass_guide_filter          1
+pass_guide_filter: {1: 4534299}
+num_features: {2: 4534299}
+Non-Targeting cells: 218838
+duplicated cell_barcode: 0
+missing values: {}
+===== HCT116_obs.parquet  (3409169 cells)
+['cell_barcode', 'sample', 'num_features', 'guide_target', 'gene_target', 'n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pass_guide_filter']
+                     cell_barcode         sample  num_features                   guide_target gene_target  n_genes_by_counts  total_counts  pct_counts_mt  pass_guide_filter
+0  AAACCAAAGACATGTT-HCT116_Batch1  HCT116_Batch1             2        ST14_P1P2-1|ST14_P1P2-2        ST14               4883       19136.0       6.161162                  1
+1  AAACCAAAGACCCAAC-HCT116_Batch1  HCT116_Batch1             2  SIGLEC5_P1P2-1|SIGLEC5_P1P2-2     SIGLEC5               8130       47916.0       3.259871                  1
+2  AAACCAAAGAGGTACG-HCT116_Batch1  HCT116_Batch1             2      VSNL1_P1P2-1|VSNL1_P1P2-2       VSNL1               6531       28435.0       3.664498                  1
+3  AAACCAAAGCGATTAT-HCT116_Batch1  HCT116_Batch1             2      KCNK7_P1P2-1|KCNK7_P1P2-2       KCNK7               5931       26080.0       4.167945                  1
+4  AAACCAAAGGCTTAAT-HCT116_Batch1  HCT116_Batch1             2      APOA4_P1P2-1|APOA4_P1P2-2       APOA4               7157       38366.0       2.489183                  1
+cell_barcode         3409169
+sample                   109
+num_features               1
+guide_target           20845
+gene_target            18294
+n_genes_by_counts      10249
+total_counts           68794
+pct_counts_mt        2643971
+pass_guide_filter          1
+pass_guide_filter: {1: 3409169}
+num_features: {2: 3409169}
+Non-Targeting cells: 165777
+duplicated cell_barcode: 0
+missing values: {}

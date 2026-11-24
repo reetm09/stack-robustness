@@ -1,0 +1,58 @@
+{
+ "settings": {
+  "lines": [
+   "HEK293T",
+   "HCT116"
+  ],
+  "control_label": "Non-Targeting",
+  "min_cells": 100,
+  "min_batch_controls": 1,
+  "fractions": {
+   "train": 0.7,
+   "val": 0.15,
+   "test": 0.15
+  },
+  "seed": 0
+ },
+ "cells": {
+  "read": 7943468,
+  "in_lines": 7943468
+ },
+ "genes": {
+  "targets": 18319,
+  "train": 8805,
+  "val": 1887,
+  "test": 1887,
+  "excluded": 5740
+ },
+ "controls": {
+  "HEK293T": {
+   "batches_with_controls": 223,
+   "batches_without_controls": 0,
+   "train": 153188,
+   "val": 32825,
+   "test": 32825
+  },
+  "HCT116": {
+   "batches_with_controls": 109,
+   "batches_without_controls": 0,
+   "train": 116045,
+   "val": 24866,
+   "test": 24866
+  }
+ },
+ "inputs": {
+  "obs": [
+   "HEK293T=../data/xatlas_orion_obs/HEK293T_obs.parquet",
+   "HCT116=../data/xatlas_orion_obs/HCT116_obs.parquet"
+  ],
+  "columns": {
+   "line_col": null,
+   "gene_col": "gene_target",
+   "batch_col": "sample",
+   "cell_id_col": "cell_barcode",
+   "guide_col": "guide_target"
+  },
+  "query": null
+ }
+}
