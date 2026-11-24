@@ -1,0 +1,25 @@
+[cellline] plan: {"batches": {"HEK293T": 10, "HCT116": 10}, "genes": {"train": 50, "val": 10}, "genes_dropped_for_lack_of_cells": {"train": 0, "val": 0}, "cells": {"perturbed": {"HEK293T": 862, "HCT116": 1482}, "controls": {"train": 2000, "val": 2000}}, "vocabulary_genes_covered": 14700, "batch_files_to_read": 20}
+[cellline] read HCT116_Batch28 (1/20): 526 cells
+[cellline] read HCT116_Batch34 (2/20): 566 cells
+[cellline] read HCT116_Batch46 (3/20): 598 cells
+[cellline] read HCT116_Batch53 (4/20): 551 cells
+[cellline] read HCT116_Batch56 (5/20): 540 cells
+[cellline] read HCT116_Batch63 (6/20): 600 cells
+[cellline] read HCT116_Batch67 (7/20): 532 cells
+[cellline] read HCT116_Batch77 (8/20): 427 cells
+[cellline] read HCT116_Batch78 (9/20): 575 cells
+[cellline] read HCT116_Batch85 (10/20): 567 cells
+[cellline] read HEK293T_Batch117 (11/20): 91 cells
+[cellline] read HEK293T_Batch139 (12/20): 54 cells
+[cellline] read HEK293T_Batch17 (13/20): 96 cells
+[cellline] read HEK293T_Batch192 (14/20): 89 cells
+[cellline] read HEK293T_Batch204 (15/20): 53 cells
+[cellline] read HEK293T_Batch211 (16/20): 81 cells
+[cellline] read HEK293T_Batch214 (17/20): 76 cells
+[cellline] read HEK293T_Batch23 (18/20): 118 cells
+[cellline] read HEK293T_Batch43 (19/20): 94 cells
+[cellline] read HEK293T_Batch85 (20/20): 110 cells
+[cellline] 50 training genes, 10 validation genes, 2000/2000 training/validation control cells
+[cellline] validation loss before training (zero-shot): 10.4926
+[cellline] trained 50 steps in 11s; validation loss after: 8.3901
+[cellline] wrote results/cellline/first_run

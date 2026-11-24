@@ -1,0 +1,99 @@
+{
+ "subset": {
+  "n_train_genes": 50,
+  "n_val_genes": 10,
+  "max_cells_per_gene": 256,
+  "max_controls": 2000,
+  "batches_per_line": 10,
+  "seed": 0
+ },
+ "aliases": 0,
+ "batches": {
+  "HEK293T": 10,
+  "HCT116": 10
+ },
+ "genes": {
+  "train": 50,
+  "val": 10
+ },
+ "genes_dropped_for_lack_of_cells": {
+  "train": 0,
+  "val": 0
+ },
+ "cells": {
+  "perturbed": {
+   "HEK293T": 862,
+   "HCT116": 1482
+  },
+  "controls": {
+   "train": 2000,
+   "val": 2000
+  }
+ },
+ "train_genes": [
+  "ADAT3",
+  "ALG3",
+  "BCL2L1",
+  "C11orf86",
+  "CAPN1",
+  "CD1C",
+  "CFAP157",
+  "CHCHD7",
+  "DEFB127",
+  "DPP9",
+  "FAM9A",
+  "FREM3",
+  "FUT10",
+  "GP1BA",
+  "HPS1",
+  "IFNA8",
+  "INTS10",
+  "IVNS1ABP",
+  "KATNBL1",
+  "LGI4",
+  "LTB4R",
+  "MAGEC1",
+  "MRPL24",
+  "NAA30",
+  "NEURL2",
+  "NHS",
+  "OR52M1",
+  "PCM1",
+  "PHF20",
+  "PPP1R16B",
+  "PTGDS",
+  "PYDC2",
+  "RASD1",
+  "RFXAP",
+  "RNASE6",
+  "SEC22A",
+  "SLC16A11",
+  "SLC46A1",
+  "SLC7A2",
+  "SYAP1",
+  "SYCP3",
+  "TBC1D5",
+  "TMPRSS2",
+  "TRA2A",
+  "TRAPPC13",
+  "TRIM46",
+  "ZBED2",
+  "ZCCHC7",
+  "ZNF670",
+  "ZNFX1"
+ ],
+ "val_genes": [
+  "ABHD14A",
+  "CAPN14",
+  "CRACD",
+  "GGCT",
+  "KLF14",
+  "MFSD3",
+  "PAIP2B",
+  "PCP2",
+  "PTPRB",
+  "SLC25A42"
+ ],
+ "vocabulary_genes_covered": 14700,
+ "batch_files_to_read": 20
+}

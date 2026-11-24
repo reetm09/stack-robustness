@@ -1,0 +1,1 @@
+[cellline] plan: {"batches": {"HEK293T": 10, "HCT116": 10}, "genes": {"train": 50, "val": 10}, "genes_dropped_for_lack_of_cells": {"train": 0, "val": 0}, "cells": {"perturbed": {"HEK293T": 862, "HCT116": 1482}, "controls": {"train": 2000, "val": 2000}}, "vocabulary_genes_covered": 14700, "batch_files_to_read": 20}
