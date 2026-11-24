@@ -93,6 +93,9 @@ def main() -> None:
                         help="load (or save) the shared adapter here; default <out>/shared_adapter.pt")
     parser.add_argument("--ttt-steps", type=int, default=250)
     parser.add_argument("--ttt-lr", type=float, default=1e-4)
+    parser.add_argument("--selection", type=Path, default=None,
+                        help="stage2_selection.json (scripts/select_ttt.py): each TTT arm's own learning rate and "
+                             "steps, in place of --ttt-lr and --ttt-steps")
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--schedule", default="cosine", choices=["cosine", "constant"])
     parser.add_argument("--warmup", type=float, default=0.1)
@@ -107,6 +110,10 @@ def main() -> None:
     args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     null = not args.no_null
+
+    per_arm = {}  # TTT arm -> (steps, learning rate) chosen on validation
+    if args.selection is not None:
+        per_arm = {arm: (int(v["steps"]), float(v["lr"])) for arm, v in json.loads(args.selection.read_text()).items()}
 
     name = "norman2019_val" if args.holdout == "val" else "norman2019"
     ctx = EvalContext.load(ROOT / f"data/processed/{name}_eval.npz")
@@ -226,7 +233,9 @@ def main() -> None:
                 tasks = norman_tasks(double, train_doubles, null=null)
             assert not {t.target for t in tasks} & set(held_out), "held-out doubles must never be trained on"
             start = shared if arm.startswith("shared") else None
-            result = adapt(model, cells, tasks, pools, config(args.ttt_steps, args.ttt_lr),
+            steps_lr = per_arm.get(arm, (args.ttt_steps, args.ttt_lr))
+            info.setdefault("ttt_settings", {})[arm] = {"steps": steps_lr[0], "lr": steps_lr[1]}
+            result = adapt(model, cells, tasks, pools, config(*steps_lr),
                            cls_base=cls_shared if start is not None else cls_frozen, device=device,
                            adapter_init=start)
             info["seconds"][f"{arm}_adapt"] = result["seconds"]
