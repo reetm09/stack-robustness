@@ -13,6 +13,9 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
   (`..` and `../ttt`), so `uv sync` here works only once they are on the same branch.
 - **Tested** with the unit and smoke tests in `tests/`, on synthetic cells and a tiny STACK,
   on CPU. **Not yet run** on real data, on the real checkpoint, or on a GPU.
+- **Known break:** Andrew's commit `c0ffb27` changed `stack_ttt.windows.task_window` to return
+  three values. `finetune.py` still unpacks two, so fine-tuning fails against his branch from that
+  commit on. The split builder below is unaffected.
 
 ## Pending team confirmation
 
@@ -20,8 +23,9 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
 2. **Dataset and schema.** Where the X-Atlas/Orion slice is and its format. The `obs` columns
    for cell line, target gene, guide, GEM batch and the non-targeting label. Where the raw
    counts and library sizes are.
-3. **Split.** Who builds it and its file format: training, validation and test genes, the
-   per-GEM-batch control pools, and the eligibility rule (≥100 cells per line per target).
+3. **Split.** `stack_cellline.split` builds it (see "The split" below). Its settings were chosen
+   on this branch and still need the team's agreement: 70/15/15, seed 0, one gene split for both
+   directions. What "guide-filtered" means is still open.
 4. **Remaining method choices.**
    - Loss: STACK's full fine-tuning loss (the default here, as in `ttt/`) or energy distance
      only (the proposal's Eq. 2; `LossWeights(recon=0, sw=0, cls=0)`).
@@ -29,6 +33,46 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
      X-Atlas validation `EvalContext`.
    - Step count and learning rate. The defaults are `norman_ttt.py`'s shared-adapter
      settings, not tuned for any cell line.
+
+## The split
+
+`src/stack_cellline/split.py` applies the proposal's rule (PDF p. 3; `proposal/main.tex:106`) to
+the real cell metadata and writes the split once, for everyone to use:
+
+- **Eligible targets:** at least 100 cells in **each** line, counted only in GEM batches that hold
+  that line's non-targeting controls.
+- **Genes:** eligible targets are split into train, validation and test **by gene**, so all of a
+  gene's guides land together. One gene split serves both directions (HEK293T → HCT116 and the
+  reverse), so a test gene is never a training gene in either direction.
+- **Controls:** each line's non-targeting control cells are split into train, validation and test
+  pools **within each GEM batch**.
+
+Settings on this branch, still to be agreed by the team: 70/15/15 for both genes and controls,
+and seed 0. Reruns with the same inputs give identical files.
+
+It reads only cell metadata (`obs` of an `.h5ad`, or a `.csv`/`.tsv`/`.parquet` table), never
+expression data, and needs only pandas and anndata. Run it from the repo root. Replace the
+`<...>` parts with the dataset's real file and column names:
+
+```bash
+PYTHONPATH=cellline/src python -m stack_cellline.split \
+    --obs <file.h5ad> --line-col <cell line column> --gene-col <target gene column> \
+    --batch-col <GEM batch column> --guide-col <guide column> \
+    --control-label <non-targeting label> --lines HEK293T HCT116 \
+    --out cellline/splits/xatlas_orion
+```
+
+- If each cell line is in its own file with no cell-line column, drop `--line-col` and give
+  `--obs HEK293T=<file> HCT116=<file>`.
+- To count only guide-filtered cells, add `--query "<pandas condition>"`.
+- It refuses to overwrite an existing split unless given `--overwrite`.
+
+Outputs in `--out`:
+
+- `genes.csv`: one row per target gene, with its split (`train`, `val`, `test` or `excluded`), its
+  cells per line in batches with controls, its number of guides, and why it was excluded.
+- `controls.csv.gz`: one row per pooled control cell: `cell_id`, `line`, `batch`, `pool`.
+- `split.json`: the settings, input files, column names and counts.
 
 ## The task
 
