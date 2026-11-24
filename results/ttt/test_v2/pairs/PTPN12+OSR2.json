@@ -1,0 +1,152 @@
+{
+ "seconds": {
+  "icl_T1": 7.174633979797363,
+  "icl_T5": 25.793434143066406,
+  "shared_T1": 7.063482999801636,
+  "shared_T5": 24.834385633468628,
+  "ttt_adapt": 95.76312470436096,
+  "ttt_T1": 7.831775903701782,
+  "ttt_T5": 27.79350757598877,
+  "ttt_random_adapt": 95.64210271835327,
+  "ttt_random_T1": 7.634631872177124,
+  "shared_ttt_adapt": 96.60997128486633,
+  "shared_ttt_T1": 8.038042306900024,
+  "shared_ttt_T5": 29.35451865196228,
+  "shared_ttt_random_adapt": 95.69512462615967,
+  "shared_ttt_random_T1": 7.9511706829071045
+ },
+ "losses": {
+  "ttt": {
+   "pairs": [
+    11.503126072329144,
+    5.806382284607998
+   ],
+   "own_prompts": [
+    0.5152399937311808,
+    0.4523624777793884
+   ],
+   "null": [
+    22.08625030517578,
+    6.03653621673584
+   ]
+  },
+  "ttt_random": {
+   "pairs": [
+    12.038890733275302,
+    6.442404278489047
+   ],
+   "null": [
+    4.582367420196533,
+    4.469561815261841
+   ],
+   "own_prompts": [
+    0.4749409779906273,
+    0.4867403283715248
+   ]
+  },
+  "shared_ttt": {
+   "pairs": [
+    4.224120870579121,
+    3.3583963222281876
+   ],
+   "own_prompts": [
+    0.4044189254442851,
+    0.4117544889450073
+   ],
+   "null": [
+    1.397839605808258,
+    1.1859402656555176
+   ]
+  },
+  "shared_ttt_random": {
+   "pairs": [
+    3.5100515387779057,
+    3.5695591083792753
+   ],
+   "null": [
+    1.5603774189949036,
+    2.181429147720337
+   ],
+   "own_prompts": [
+    0.4026460126042366,
+    0.41023314744234085
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "CEBPB+OSR2",
+   "CEBPE+PTPN12",
+   "FOSB+OSR2",
+   "FOSB+PTPN12",
+   "PTPN12+PTPN9",
+   "PTPN12+SNAI1",
+   "PTPN12+UBASH3A",
+   "PTPN12+ZBTB25",
+   "SAMD1+PTPN12",
+   "UBASH3B+OSR2",
+   "UBASH3B+PTPN12",
+   "ZBTB10+PTPN12"
+  ],
+  "ttt_random": [
+   "CEBPE+CEBPB",
+   "ETS2+CEBPE",
+   "ETS2+CNN1",
+   "ETS2+PRTG",
+   "FEV+MAP7D1",
+   "FOXF1+FOXL2",
+   "MAP2K3+IKZF3",
+   "PLK4+STIL",
+   "POU3F2+FOXL2",
+   "SGK1+TBX2",
+   "UBASH3B+PTPN9",
+   "UBASH3B+UBASH3A"
+  ],
+  "shared_ttt": [
+   "CEBPB+OSR2",
+   "CEBPE+PTPN12",
+   "FOSB+OSR2",
+   "FOSB+PTPN12",
+   "PTPN12+PTPN9",
+   "PTPN12+SNAI1",
+   "PTPN12+UBASH3A",
+   "PTPN12+ZBTB25",
+   "SAMD1+PTPN12",
+   "UBASH3B+OSR2",
+   "UBASH3B+PTPN12",
+   "ZBTB10+PTPN12"
+  ],
+  "shared_ttt_random": [
+   "CEBPE+CEBPB",
+   "ETS2+CEBPE",
+   "ETS2+CNN1",
+   "ETS2+PRTG",
+   "FEV+MAP7D1",
+   "FOXF1+FOXL2",
+   "MAP2K3+IKZF3",
+   "PLK4+STIL",
+   "POU3F2+FOXL2",
+   "SGK1+TBX2",
+   "UBASH3B+PTPN9",
+   "UBASH3B+UBASH3A"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}

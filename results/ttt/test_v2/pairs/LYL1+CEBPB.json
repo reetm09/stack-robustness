@@ -1,0 +1,132 @@
+{
+ "seconds": {
+  "icl_T1": 3.9541778564453125,
+  "icl_T5": 13.55591893196106,
+  "shared_T1": 3.9271554946899414,
+  "shared_T5": 13.998180627822876,
+  "ttt_adapt": 86.24770474433899,
+  "ttt_T1": 3.969655990600586,
+  "ttt_T5": 14.238991737365723,
+  "ttt_random_adapt": 86.35429310798645,
+  "ttt_random_T1": 4.142709732055664,
+  "shared_ttt_adapt": 85.90167546272278,
+  "shared_ttt_T1": 3.846482515335083,
+  "shared_ttt_T5": 13.818923473358154,
+  "shared_ttt_random_adapt": 86.06321001052856,
+  "shared_ttt_random_T1": 3.857875108718872
+ },
+ "losses": {
+  "ttt": {
+   "null": [
+    7.214520295461019,
+    4.583942890167236
+   ],
+   "pairs": [
+    9.889340419035692,
+    3.8127755721410117
+   ],
+   "own_prompts": [
+    0.49977462987105054,
+    0.4474675903717677
+   ]
+  },
+  "ttt_random": {
+   "null": [
+    4.981596946716309,
+    2.327141761779785
+   ],
+   "pairs": [
+    11.601599652592729,
+    6.40519685861541
+   ],
+   "own_prompts": [
+    0.4516422798236211,
+    0.46347321569919586
+   ]
+  },
+  "shared_ttt": {
+   "null": [
+    7.503194491068522,
+    2.158310572306315
+   ],
+   "pairs": [
+    3.518727284211379,
+    2.067926260141226
+   ],
+   "own_prompts": [
+    0.398212268948555,
+    0.3909655809402466
+   ]
+  },
+  "shared_ttt_random": {
+   "null": [
+    8.832527160644531,
+    0.8164043426513672
+   ],
+   "pairs": [
+    4.205961471650658,
+    2.848952148018814
+   ],
+   "own_prompts": [
+    0.3882768750190735,
+    0.39206662774086
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "CEBPB+CEBPA",
+   "CEBPB+MAPK1",
+   "CEBPB+OSR2",
+   "CEBPE+CEBPB",
+   "FOSB+CEBPB",
+   "JUN+CEBPB",
+   "LYL1+IER5L"
+  ],
+  "ttt_random": [
+   "ETS2+MAPK1",
+   "FOSB+IKZF3",
+   "FOXA3+FOXL2",
+   "KLF1+CLDN6",
+   "SNAI1+DLX2",
+   "TGFBR2+PRTG",
+   "ZC3HAV1+CEBPE"
+  ],
+  "shared_ttt": [
+   "CEBPB+CEBPA",
+   "CEBPB+MAPK1",
+   "CEBPB+OSR2",
+   "CEBPE+CEBPB",
+   "FOSB+CEBPB",
+   "JUN+CEBPB",
+   "LYL1+IER5L"
+  ],
+  "shared_ttt_random": [
+   "ETS2+MAPK1",
+   "FOSB+IKZF3",
+   "FOXA3+FOXL2",
+   "KLF1+CLDN6",
+   "SNAI1+DLX2",
+   "TGFBR2+PRTG",
+   "ZC3HAV1+CEBPE"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}

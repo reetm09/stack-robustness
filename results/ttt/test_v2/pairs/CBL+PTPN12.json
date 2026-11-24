@@ -1,0 +1,160 @@
+{
+ "seconds": {
+  "icl_T1": 6.519489526748657,
+  "icl_T5": 24.378957271575928,
+  "shared_T1": 6.443692207336426,
+  "shared_T5": 25.158661365509033,
+  "ttt_adapt": 100.96958470344543,
+  "ttt_T1": 6.248537063598633,
+  "ttt_T5": 24.44494104385376,
+  "ttt_random_adapt": 100.93643426895142,
+  "ttt_random_T1": 6.356137990951538,
+  "shared_ttt_adapt": 101.05290389060974,
+  "shared_ttt_T1": 6.219109773635864,
+  "shared_ttt_T5": 24.85741424560547,
+  "shared_ttt_random_adapt": 100.74963641166687,
+  "shared_ttt_random_T1": 6.309676647186279
+ },
+ "losses": {
+  "ttt": {
+   "pairs": [
+    11.006069194186818,
+    4.005008494312113
+   ],
+   "own_prompts": [
+    0.47725675255060196,
+    0.4299522414803505
+   ],
+   "null": [
+    4.293941974639893,
+    2.792182207107544
+   ]
+  },
+  "ttt_random": {
+   "pairs": [
+    9.199538373947144,
+    4.751726916101243
+   ],
+   "own_prompts": [
+    0.4853800932566325,
+    0.45406318704287213
+   ],
+   "null": [
+    21.755727767944336,
+    21.030452728271484
+   ]
+  },
+  "shared_ttt": {
+   "pairs": [
+    3.4723464250564575,
+    3.564284374768084
+   ],
+   "own_prompts": [
+    0.3964653015136719,
+    0.4070111885666847
+   ],
+   "null": [
+    1.011837363243103,
+    11.61979866027832
+   ]
+  },
+  "shared_ttt_random": {
+   "pairs": [
+    4.461055235068003,
+    2.463382375240326
+   ],
+   "own_prompts": [
+    0.41295312841733295,
+    0.40480860074361164
+   ],
+   "null": [
+    1.090709924697876,
+    11.28499698638916
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "CBL+CNN1",
+   "CBL+PTPN9",
+   "CBL+TGFBR2",
+   "CBL+UBASH3A",
+   "CBL+UBASH3B",
+   "CEBPE+PTPN12",
+   "FOSB+PTPN12",
+   "PTPN12+PTPN9",
+   "PTPN12+SNAI1",
+   "PTPN12+UBASH3A",
+   "PTPN12+ZBTB25",
+   "SAMD1+PTPN12",
+   "UBASH3B+PTPN12",
+   "ZBTB10+PTPN12"
+  ],
+  "ttt_random": [
+   "CDKN1C+CDKN1B",
+   "CEBPB+CEBPA",
+   "CEBPB+MAPK1",
+   "CEBPE+CEBPB",
+   "CEBPE+KLF1",
+   "FEV+ISL2",
+   "FOXA1+HOXB9",
+   "IRF1+SET",
+   "JUN+CEBPB",
+   "KLF1+FOXA1",
+   "MAP2K3+SLC38A2",
+   "SET+KLF1",
+   "ZBTB10+DLX2",
+   "ZNF318+FOXL2"
+  ],
+  "shared_ttt": [
+   "CBL+CNN1",
+   "CBL+PTPN9",
+   "CBL+TGFBR2",
+   "CBL+UBASH3A",
+   "CBL+UBASH3B",
+   "CEBPE+PTPN12",
+   "FOSB+PTPN12",
+   "PTPN12+PTPN9",
+   "PTPN12+SNAI1",
+   "PTPN12+UBASH3A",
+   "PTPN12+ZBTB25",
+   "SAMD1+PTPN12",
+   "UBASH3B+PTPN12",
+   "ZBTB10+PTPN12"
+  ],
+  "shared_ttt_random": [
+   "CDKN1C+CDKN1B",
+   "CEBPB+CEBPA",
+   "CEBPB+MAPK1",
+   "CEBPE+CEBPB",
+   "CEBPE+KLF1",
+   "FEV+ISL2",
+   "FOXA1+HOXB9",
+   "IRF1+SET",
+   "JUN+CEBPB",
+   "KLF1+FOXA1",
+   "MAP2K3+SLC38A2",
+   "SET+KLF1",
+   "ZBTB10+DLX2",
+   "ZNF318+FOXL2"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}

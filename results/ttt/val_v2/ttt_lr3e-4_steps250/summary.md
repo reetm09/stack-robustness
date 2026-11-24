@@ -1,0 +1,75 @@
+# Norman val doubles: ICL, shared adapter, TTT
+
+21 doubles, 84 training doubles. Settings in args.json.
+
+## Panel `stack_genes`
+
+Median score:
+
+| metric | control_baseline | mean_baseline | additive | technical_duplicate | interpolated_duplicate | query | shared_ttt_T1_diff | shared_ttt_T1_raw |
+|---|---|---|---|---|---|---|---|---|
+| pearson_deltactrl | nan | 0.697 | 0.848 | 0.862 | 0.849 | 0.823 | 0.838 | 0.683 |
+| spearman_deltactrl_de | nan | 0.760 | 0.879 | 0.878 | 0.877 | 0.866 | 0.864 | 0.738 |
+| de_pr_auc | 0.042 | 0.573 | 0.700 | 0.726 | 0.673 | 0.660 | 0.655 | 0.508 |
+| direction_agreement | 0.000 | 0.920 | 0.993 | 0.989 | 0.978 | 0.984 | 0.988 | 0.937 |
+| top_overlap | 0.000 | 0.200 | 0.550 | 0.650 | 0.650 | 0.500 | 0.550 | 0.350 |
+| mse | 0.004 | 0.002 | 0.001 | 0.001 | 0.001 | 0.001 | 0.001 | 0.002 |
+| mae | 0.026 | 0.020 | 0.017 | 0.017 | 0.017 | 0.018 | 0.018 | 0.023 |
+| wmse | 0.067 | 0.046 | 0.009 | 0.002 | 0.004 | 0.022 | 0.015 | 0.016 |
+| pearson_deltapert | -0.254 | nan | 0.718 | 0.763 | 0.722 | 0.520 | 0.603 | 0.469 |
+| pearson_deltactrl_top | nan | 0.684 | 0.960 | 0.985 | 0.964 | 0.958 | 0.947 | 0.909 |
+| pearson_deltapert_top | -0.528 | nan | 0.942 | 0.975 | 0.936 | 0.845 | 0.899 | 0.840 |
+| nir | 0.500 | 0.500 | 1.000 | 1.000 | 1.000 | 0.850 | 0.900 | 0.950 |
+
+Median share of the gap closed:
+
+| metric | control_baseline | mean_baseline | additive | technical_duplicate | interpolated_duplicate | query | shared_ttt_T1_diff | shared_ttt_T1_raw |
+|---|---|---|---|---|---|---|---|---|
+| pearson_deltactrl | nan | 0.000 | 0.421 | 0.489 | 0.387 | 0.303 | 0.339 | -0.097 |
+| spearman_deltactrl_de | nan | 0.000 | 0.412 | 0.453 | 0.355 | 0.345 | 0.359 | -0.318 |
+| de_pr_auc | -1.000 | 0.000 | 0.309 | 0.355 | 0.214 | 0.260 | 0.226 | -0.116 |
+| direction_agreement | -1.000 | 0.000 | 0.929 | 0.810 | 0.721 | 0.797 | 0.800 | 0.000 |
+| top_overlap | -0.250 | 0.000 | 0.357 | 0.500 | 0.500 | 0.300 | 0.300 | 0.176 |
+| mse | -0.579 | 0.000 | 0.450 | 0.518 | 0.514 | 0.258 | 0.354 | 0.050 |
+| mae | -0.256 | 0.000 | 0.124 | 0.116 | 0.130 | 0.055 | 0.112 | -0.096 |
+| wmse | -0.391 | 0.000 | 0.844 | 0.921 | 0.854 | 0.533 | 0.647 | 0.523 |
+| pearson_deltapert | 0.000 | nan | 0.797 | 0.828 | 0.777 | 0.544 | 0.727 | 0.632 |
+| pearson_deltactrl_top | nan | 0.000 | 0.873 | 0.950 | 0.867 | 0.861 | 0.820 | 0.660 |
+| pearson_deltapert_top | 0.000 | nan | 0.957 | 0.982 | 0.956 | 0.834 | 0.899 | 0.886 |
+| nir | 0.000 | 0.000 | 1.000 | 1.000 | 1.000 | 0.333 | 0.722 | 0.909 |
+
+## Panel `hvg2000`
+
+Median score:
+
+| metric | control_baseline | mean_baseline | additive | technical_duplicate | interpolated_duplicate | query | shared_ttt_T1_diff | shared_ttt_T1_raw |
+|---|---|---|---|---|---|---|---|---|
+| pearson_deltactrl | nan | 0.630 | 0.917 | 0.947 | 0.902 | 0.901 | 0.902 | 0.794 |
+| spearman_deltactrl_de | nan | 0.754 | 0.935 | 0.954 | 0.947 | 0.930 | 0.920 | 0.863 |
+| de_pr_auc | 0.070 | 0.587 | 0.806 | 0.844 | 0.791 | 0.792 | 0.748 | 0.629 |
+| direction_agreement | 0.000 | 0.867 | 0.990 | 0.996 | 0.967 | 0.990 | 0.979 | 0.913 |
+| top_overlap | 0.000 | 0.300 | 0.650 | 0.700 | 0.700 | 0.600 | 0.600 | 0.500 |
+| mse | 0.012 | 0.007 | 0.002 | 0.001 | 0.001 | 0.004 | 0.003 | 0.004 |
+| mae | 0.034 | 0.028 | 0.018 | 0.013 | 0.015 | 0.021 | 0.020 | 0.023 |
+| wmse | 0.206 | 0.150 | 0.017 | 0.003 | 0.006 | 0.055 | 0.039 | 0.035 |
+| pearson_deltapert | -0.280 | nan | 0.846 | 0.910 | 0.869 | 0.679 | 0.754 | 0.669 |
+| pearson_deltactrl_top | nan | 0.650 | 0.961 | 0.984 | 0.953 | 0.961 | 0.948 | 0.860 |
+| pearson_deltapert_top | -0.412 | nan | 0.937 | 0.976 | 0.943 | 0.828 | 0.885 | 0.800 |
+| nir | 0.500 | 0.500 | 1.000 | 1.000 | 1.000 | 0.800 | 1.000 | 1.000 |
+
+Median share of the gap closed:
+
+| metric | control_baseline | mean_baseline | additive | technical_duplicate | interpolated_duplicate | query | shared_ttt_T1_diff | shared_ttt_T1_raw |
+|---|---|---|---|---|---|---|---|---|
+| pearson_deltactrl | nan | 0.000 | 0.661 | 0.846 | 0.729 | 0.634 | 0.685 | 0.381 |
+| spearman_deltactrl_de | nan | 0.000 | 0.636 | 0.830 | 0.750 | 0.651 | 0.597 | 0.416 |
+| de_pr_auc | -1.000 | 0.000 | 0.552 | 0.660 | 0.486 | 0.505 | 0.453 | 0.174 |
+| direction_agreement | -1.000 | 0.000 | 0.944 | 0.980 | 0.826 | 0.917 | 0.850 | 0.346 |
+| top_overlap | -0.333 | 0.000 | 0.471 | 0.600 | 0.533 | 0.455 | 0.400 | 0.357 |
+| mse | -0.492 | 0.000 | 0.666 | 0.818 | 0.751 | 0.461 | 0.571 | 0.410 |
+| mae | -0.212 | 0.000 | 0.362 | 0.492 | 0.351 | 0.242 | 0.295 | 0.089 |
+| wmse | -0.296 | 0.000 | 0.895 | 0.972 | 0.940 | 0.577 | 0.700 | 0.633 |
+| pearson_deltapert | 0.000 | nan | 0.880 | 0.932 | 0.881 | 0.700 | 0.779 | 0.719 |
+| pearson_deltactrl_top | nan | 0.000 | 0.889 | 0.955 | 0.889 | 0.878 | 0.818 | 0.652 |
+| pearson_deltapert_top | 0.000 | nan | 0.957 | 0.982 | 0.946 | 0.837 | 0.880 | 0.866 |
+| nir | 0.000 | 0.000 | 1.000 | 1.000 | 1.000 | 0.692 | 0.929 | 1.000 |

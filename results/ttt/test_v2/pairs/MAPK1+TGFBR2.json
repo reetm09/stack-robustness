@@ -1,0 +1,156 @@
+{
+ "seconds": {
+  "icl_T1": 5.164944648742676,
+  "icl_T5": 19.02303981781006,
+  "shared_T1": 4.899267911911011,
+  "shared_T5": 19.088396310806274,
+  "ttt_adapt": 88.62729477882385,
+  "ttt_T1": 4.937981843948364,
+  "ttt_T5": 19.0729501247406,
+  "ttt_random_adapt": 87.9925274848938,
+  "ttt_random_T1": 4.890130519866943,
+  "shared_ttt_adapt": 88.31240200996399,
+  "shared_ttt_T1": 4.883769512176514,
+  "shared_ttt_T5": 18.39658522605896,
+  "shared_ttt_random_adapt": 86.72317290306091,
+  "shared_ttt_random_T1": 5.0632100105285645
+ },
+ "losses": {
+  "ttt": {
+   "pairs": [
+    11.295343424962914,
+    6.299755801325259
+   ],
+   "own_prompts": [
+    0.4774779975414276,
+    0.46405521035194397
+   ],
+   "null": [
+    3.28633189201355,
+    1.877366304397583
+   ]
+  },
+  "ttt_random": {
+   "pairs": [
+    11.42066699133979,
+    5.818951532575819
+   ],
+   "own_prompts": [
+    0.552602082490921,
+    0.47880110144615173
+   ],
+   "null": [
+    19.726764678955078,
+    2.52414870262146
+   ]
+  },
+  "shared_ttt": {
+   "pairs": [
+    3.460956669372061,
+    2.471101445996243
+   ],
+   "own_prompts": [
+    0.4073385000228882,
+    0.4228963553905487
+   ],
+   "null": [
+    0.9489663243293762,
+    0.7798866629600525
+   ]
+  },
+  "shared_ttt_random": {
+   "pairs": [
+    3.9878157496452333,
+    3.244782911406623
+   ],
+   "own_prompts": [
+    0.4009193405508995,
+    0.4110977575182915
+   ],
+   "null": [
+    1.5738228559494019,
+    1.128551721572876
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "BCL2L11+TGFBR2",
+   "CBL+TGFBR2",
+   "CEBPB+MAPK1",
+   "CNN1+MAPK1",
+   "DUSP9+MAPK1",
+   "ETS2+MAPK1",
+   "IGDCC3+MAPK1",
+   "MAPK1+IKZF3",
+   "MAPK1+PRTG",
+   "SAMD1+TGFBR2",
+   "TGFBR2+ETS2",
+   "TGFBR2+IGDCC3",
+   "TGFBR2+PRTG"
+  ],
+  "ttt_random": [
+   "CEBPE+KLF1",
+   "DUSP9+IGDCC3",
+   "ETS2+MAP7D1",
+   "FEV+CBFA2T3",
+   "FEV+ISL2",
+   "FOXA3+HOXB9",
+   "IGDCC3+PRTG",
+   "KLF1+CEBPA",
+   "KLF1+CLDN6",
+   "MAP2K6+IKZF3",
+   "PLK4+STIL",
+   "SET+KLF1",
+   "SGK1+TBX2"
+  ],
+  "shared_ttt": [
+   "BCL2L11+TGFBR2",
+   "CBL+TGFBR2",
+   "CEBPB+MAPK1",
+   "CNN1+MAPK1",
+   "DUSP9+MAPK1",
+   "ETS2+MAPK1",
+   "IGDCC3+MAPK1",
+   "MAPK1+IKZF3",
+   "MAPK1+PRTG",
+   "SAMD1+TGFBR2",
+   "TGFBR2+ETS2",
+   "TGFBR2+IGDCC3",
+   "TGFBR2+PRTG"
+  ],
+  "shared_ttt_random": [
+   "CEBPE+KLF1",
+   "DUSP9+IGDCC3",
+   "ETS2+MAP7D1",
+   "FEV+CBFA2T3",
+   "FEV+ISL2",
+   "FOXA3+HOXB9",
+   "IGDCC3+PRTG",
+   "KLF1+CEBPA",
+   "KLF1+CLDN6",
+   "MAP2K6+IKZF3",
+   "PLK4+STIL",
+   "SET+KLF1",
+   "SGK1+TBX2"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}

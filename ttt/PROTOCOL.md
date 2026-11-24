@@ -214,6 +214,10 @@ still untouched, and no selection rule changed.
     renamed genes scored 0.0250, against 0.0260.
   - **Confound:** the layout and the renaming are confounded here. A validation-only run
     (`results/ttt/val_v2_target`: target reveal, renaming on) separates them.
+    - *Correction (2026-11-24):* version 2 also froze f_CLS, so three things changed from
+      version 1, not two. The target-reveal run keeps version 2's renaming and frozen
+      f_CLS, so it isolates the layout only. The renaming and f_CLS stay confounded with
+      each other.
   - **Decision:** prompt reveal stays primary, as registered. Target reveal is validation
     only, and is not a test condition unless it is added here before any test score exists.
   - **The proposal:** it specifies STACK's energy-distance alignment objective on (prompt,
@@ -236,3 +240,34 @@ still untouched, and no selection rule changed.
     noise.
   - **For reference:** frozen STACK (`icl_T1_diff`) scored 0.0260, the both-orders query
     cells 0.0222, and the additive baseline 0.0094.
+
+- **Version 2, stage 1 (2026-11-24): cross-cell attention in all layers + decoder, learning
+  rate 3e-4.** Median validation wMSE of `shared_T1_diff`, 2,000 steps each:
+
+  | scope | lr 1e-4 | lr 3e-4 |
+  |---|---|---|
+  | final block + decoder | 0.02036 | 0.01773 |
+  | cross-cell attention in all layers + decoder | 0.01789 | 0.01668 |
+
+  - **No tie:** the next best, the final block at 3e-4, is 6.3% above the best.
+  - **Against version 1:** every setting is worse, by 3% (all layers, 3e-4) to 9% (final
+    block, 3e-4).
+
+- **Version 2, stage 2 (2026-11-24).** Median validation wMSE, from the selected shared
+  adapter for `shared_ttt` and from frozen STACK for `ttt`:
+
+  | arm | 3e-5, 50 steps | 1e-4, 50 steps | 3e-4, 50 steps | 250 steps at the better rate |
+  |---|---|---|---|---|
+  | `ttt` | 0.02312 | 0.02256 | 0.02297 | 0.02231 (1e-4) |
+  | `shared_ttt` | 0.01633 | 0.01615 | 0.01594 | 0.01544 (3e-4) |
+
+  - **Both arms keep 250 steps:** 50 steps is 1.2% above for `ttt` and 3.2% above for
+    `shared_ttt`, both outside the 1% tie. `ttt`'s margin is about the run-to-run noise.
+  - **The random-pair arms** copy these settings.
+
+- **No second test condition.** No condition was added before the test score existed (the
+  test run ended at 06:07 on 24 November). Target reveal stays validation only.
+
+- **The test run (2026-11-24)** used the settings above, once, on the 26 test doubles. The
+  shared adapter was retrained on all 105 training doubles. Results are in the README
+  ("Result on the 26 test doubles") and `results/ttt/test_v2/analysis.md`.

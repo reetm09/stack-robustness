@@ -17,6 +17,110 @@ uv run pytest                             # CPU only; the GPU is hidden from tes
 dibs submit --cpus 4 --mem 8G --vram 6G --time 30m -- uv run python scripts/norman_compare.py --doubles 3
 ```
 
+## Result on the 26 test doubles (version 2)
+
+**TTT on a pair's neighbours adds a small, consistent gain on top of the shared adapter, but
+no STACK variant comes near the additive baseline.**
+- **The run:** one run on 24 November 2026, with the settings validation chose (PROTOCOL.md,
+  Decisions).
+- **The settings:** the shared adapter on cross-cell attention in all layers + decoder at
+  3e-4, and TTT for 250 steps, at 1e-4 from frozen STACK and at 3e-4 from the shared adapter.
+- **Full tables:** `results/ttt/test_v2/analysis.md`.
+
+Median wMSE on the STACK gene panel, diff-scored, T = 1 (lower is better):
+
+| prediction | all 26 | without pilot (23) | non-additive (9) |
+|---|---|---|---|
+| frozen STACK (`icl`) | 0.0168 | 0.0163 | 0.0376 |
+| TTT from frozen STACK (`ttt`) | 0.0165 | 0.0143 | 0.0371 |
+| the same TTT on random pairs (`ttt_random`) | 0.0177 | 0.0160 | 0.0371 |
+| shared adapter (`shared`) | 0.0128 | 0.0116 | 0.0335 |
+| shared adapter + TTT (`shared_ttt`) | 0.0108 | 0.0106 | 0.0314 |
+| shared adapter + TTT on random pairs (`shared_ttt_random`) | 0.0138 | 0.0109 | 0.0355 |
+| query cells, unchanged (both orders) | 0.0155 | 0.0141 | 0.0347 |
+| additive baseline | 0.0068 | 0.0064 | 0.0114 |
+| interpolated duplicate | 0.0052 | 0.0056 | 0.0041 |
+
+Paired differences over all 26 pairs. Each is B minus A per pair, so positive means A is
+better, with a bootstrap 95% interval for the median.
+
+| A vs B | median | 95% interval | A better on |
+|---|---|---|---|
+| `shared_ttt` vs `shared` | +0.0009 | [+0.0004, +0.0012] | 20 of 26 |
+| `shared` vs `icl` | +0.0036 | [+0.0011, +0.0072] | 21 of 26 |
+| `shared_ttt` vs `shared_ttt_random` | +0.0008 | [+0.0001, +0.0013] | 18 of 26 (1 tie) |
+| `ttt` vs `icl` | +0.0009 | [+0.0001, +0.0014] | 19 of 26 |
+| `ttt` vs `ttt_random` | +0.0001 | [−0.0002, +0.0005] | 15 of 26 (1 tie) |
+| `icl` vs query cells | −0.0015 | [−0.0032, −0.0007] | 3 of 26 |
+| `shared_ttt` vs query cells | +0.0030 | [+0.0002, +0.0054] | 18 of 26 |
+| `shared_ttt` vs additive | −0.0057 | [−0.0131, −0.0017] | 4 of 26 |
+
+The tie is KIF18B+KIF2C. It has no neighbours, so both TTT arms run the same tasks on it.
+
+**Clear** (the interval excludes zero, with or without the pilot pairs):
+- **TTT improves the shared adapter.** TTT on neighbours lowers its error by a median
+  0.0009 per pair, about 6%, on 20 of 26 pairs.
+- **The shared adapter gives most of the gain.** It improves on frozen STACK by four times
+  as much (0.0036, on 21 of 26 pairs).
+- **Frozen STACK is worse than doing nothing.** Leaving the query cells unchanged beats it on
+  23 of 26 pairs.
+- **The additive baseline beats every STACK arm.** The best arm, `shared_ttt`, beats it on 4
+  of 26 pairs. Its median gap (0.0057) is six times TTT's gain.
+
+**Suggestive only** (the interval's lower end is 0.0001 to 0.0002):
+- **Neighbours over random pairs, from the shared adapter:** neighbours win by 0.0008, on 18
+  of the 25 pairs that differ. The gain may come partly from related pairs, but the evidence
+  is weak.
+- **TTT from frozen STACK:** it improves on frozen STACK (0.0009, 19 of 26). TTT on random
+  pairs does as well (next list), so this gain does not come from the neighbours.
+- **`shared_ttt` against the unchanged query cells:** it wins by 0.0030, on 18 of 26 pairs.
+
+**No effect:**
+- **Neighbours against random pairs, from frozen STACK:** +0.0001 [−0.0002, +0.0005].
+- **The spec's test:** TTT's gain does not track the additive baseline's error. The
+  Spearman correlation is ρ = 0.18 (p = 0.37) for `shared_ttt` over `shared`, and
+  ρ = 0.22 (p = 0.28) for `ttt` over `icl`.
+- **T = 5 against T = 1:** no median moves by more than 0.0008.
+
+**Too few pairs to tell:** on the 9 non-additive pairs, every TTT interval includes zero. That
+does not show TTT fails there.
+
+**Prompt use** (exploratory, 52 pair-orders): the shift that A's prompt causes correlates
+with A's own effect at a median of:
+- −0.24 for frozen STACK;
+- +0.03 for `ttt`, with 15 of 52 still below −0.3, so TTT alone does not teach STACK to
+  follow the prompt;
+- +0.57 for `shared` and +0.60 for `shared_ttt`. The shared adapter is what makes it follow.
+
+**Cost per pair** (medians from `pairs/*.json`):
+- **Per arm:** TTT's 250 steps take 93 s. Generating takes 7 s at T = 1 and 27 s at T = 5.
+- **So:** TTT makes a T = 1 prediction about 14 times slower.
+- **The shared adapter** trains once, in 837 s on 211 tasks.
+- **GPU memory:** the whole job peaked at 5.4 GB, as dibs measured it. Per-arm peaks were not
+  saved.
+
+**Limitations:**
+- **One run each:** one shared adapter, and one seed per arm. The intervals resample pairs,
+  not training runs. On validation, retraining moved a median by 1.1%.
+- **Selections at the edge of the grid:** the shared adapter took the larger scope and the
+  higher rate, and `shared_ttt` the higher rate and more steps. So neither is shown to be at
+  its best. `ttt`'s 250 steps beat 50 by 1.2% on validation, about the run-to-run noise.
+- **No new information:** the neighbours are already in the shared adapter's training set.
+  TTT on them re-specialises the model.
+- **No multiple-comparison correction:** the protocol registered none.
+- **Sign tests, added after the test** (two-sided, ties dropped):
+  - `shared_ttt` vs `shared`: p = 0.009;
+  - `shared_ttt` vs `shared_ttt_random`: p = 0.043;
+  - `ttt` vs `icl`: p = 0.029;
+  - `shared` vs `icl`: p = 0.002;
+  - `ttt` vs `ttt_random`: p = 0.42.
+- **The pilot pairs:** the 3 pilot pairs informed the method (Status). Without them, the
+  conclusions are the same.
+
+**What is committed:** each run's `analysis.md`, `summary.md`, `scores.csv`, `args.json`,
+loss history and per-pair JSON. The predicted profiles (`pairs/*.npz`) and adapter weights
+(`*.pt`) stay local.
+
 ## From the paper to STACK
 
 | Akyürek et al. | Here |
@@ -170,9 +274,11 @@ pair-orders. Query cells there carry the other single perturbation.
   - **Version 2's layout:** it is the inference-consistent one, revealing prompt cells as
     inference does (PROTOCOL.md, Changes). Its first shared adapter (final block, 3e-4)
     scored 0.0177 against version 1's 0.0163, with a prompt correlation of +0.58 against
-    +0.67 and a shift of 24% against 31%.
-  - **One confound:** version 2 also renames genes. A validation-only run with the old layout
-    and the renaming (`results/ttt/val_v2_target`) separates the two.
+    +0.67 and a shift of 24% against 31%. Over all four stage-1 settings, version 2 is 3%
+    to 9% worse than version 1 (PROTOCOL.md, Decisions).
+  - **Two confounds:** version 2 also renames genes and freezes f_CLS. A validation-only run
+    with the old layout and version 2's other settings (`results/ttt/val_v2_target`, final
+    block, 3e-4) isolates the layout. The renaming and f_CLS stay confounded with each other.
 - **All STACK predictions are smaller than the additive one.** On the additive prediction's
   top 200 genes, their effects correlate with it at about 0.97. Their size relative to it is
   49% for frozen STACK (about what B's observed profile alone gives), 66% for version 1's
@@ -261,7 +367,8 @@ prompt cells. JUN+CEBPA has only 54 cells.
 
 ## Status
 
-Built and unit-tested: everything above.
+Built and unit-tested: everything above. Run: the pilot, the pipeline check against Arc's
+tutorial, validation in two versions, and the test run ("Result on the 26 test doubles").
 
 Pilot (`results/ttt/norman_pilot3`): 3 held-out doubles, default STACK loss weights, no
 tuning. It is a pipeline and cost check, not a result. Per double, frozen prediction (both
@@ -275,16 +382,16 @@ Disclosure: the pilot's 3 doubles (AHR+FEV, AHR+KLF1, BPGM+SAMD1) are held-out t
 doubles, and they have informed the method choices above. All further tuning and
 diagnosis uses validation doubles.
 
-Next steps:
-1. Reconstruct Arc's tutorial PBMC data through this code, to rule the pipeline in or out.
-2. A validation `EvalContext` on doubles carved from the training doubles. Hyperparameters
-   are chosen there; no cell of a held-out double enters adaptation or selection.
-3. An adapter trained on random non-neighbour doubles, the control TTT must beat, then
-   all 26 held-out doubles. That fits on this machine's GPU in a few hours.
-4. Energy distance alone at T=1 against the full objective, f_CLS and T=5.
+Open:
+- **The layout run on validation** (`results/ttt/val_v2_target`) is queued. It tests whether
+  version 2's layout accounts for its gap to version 1 ("Two layouts for the slots after the
+  prompt").
+- **The remote HPC cluster's package versions** are newer than this lockfile's: pandas 3.1.1,
+  anndata 0.13.4, scvi-tools 1.5.2, and torch 2.14.1 with CUDA 12.6. The code has not been
+  run under them yet.
 
 Deferred:
 - The X-Atlas/Orion arm, which needs a slice of the 126 GB Hugging Face copy.
 - k-nearest-neighbour retrieval of H(g*).
-- The shared context adapter. The null-only adapter is the first such control.
+- Energy distance alone against the full objective.
 - Count-space input augmentations.

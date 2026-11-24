@@ -1,0 +1,148 @@
+{
+ "seconds": {
+  "icl_T1": 10.848453998565674,
+  "icl_T5": 36.51704740524292,
+  "shared_T1": 10.433541774749756,
+  "shared_T5": 35.74185013771057,
+  "ttt_adapt": 94.56343817710876,
+  "ttt_T1": 10.42800235748291,
+  "ttt_T5": 37.03965520858765,
+  "ttt_random_adapt": 96.5491111278534,
+  "ttt_random_T1": 10.523936986923218,
+  "shared_ttt_adapt": 96.16749954223633,
+  "shared_ttt_T1": 10.710628986358643,
+  "shared_ttt_T5": 38.07311034202576,
+  "shared_ttt_random_adapt": 93.6401469707489,
+  "shared_ttt_random_T1": 10.198292970657349
+ },
+ "losses": {
+  "ttt": {
+   "pairs": [
+    10.262467183850028,
+    5.378864740783518
+   ],
+   "own_prompts": [
+    0.46672452489535016,
+    0.42413680752118427
+   ],
+   "null": [
+    4.904541015625,
+    2.0179972648620605
+   ]
+  },
+  "ttt_random": {
+   "pairs": [
+    10.519725154746663,
+    5.833412709561261
+   ],
+   "null": [
+    5.5051960945129395,
+    22.629440307617188
+   ],
+   "own_prompts": [
+    0.44566185772418976,
+    0.4315600171685219
+   ]
+  },
+  "shared_ttt": {
+   "pairs": [
+    2.7484950599345295,
+    2.657534345984459
+   ],
+   "own_prompts": [
+    0.3794843852519989,
+    0.38975903391838074
+   ],
+   "null": [
+    1.8627686500549316,
+    0.8113102316856384
+   ]
+  },
+  "shared_ttt_random": {
+   "pairs": [
+    3.750349693677642,
+    3.226222662763162
+   ],
+   "null": [
+    1.399475336074829,
+    1.5320035219192505
+   ],
+   "own_prompts": [
+    0.378711998462677,
+    0.38804803788661957
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "DUSP9+IGDCC3",
+   "DUSP9+KLF1",
+   "DUSP9+MAPK1",
+   "ETS2+CEBPE",
+   "ETS2+CNN1",
+   "ETS2+IGDCC3",
+   "ETS2+IKZF3",
+   "ETS2+MAP7D1",
+   "ETS2+MAPK1",
+   "ETS2+PRTG",
+   "TGFBR2+ETS2"
+  ],
+  "ttt_random": [
+   "BPGM+ZBTB1",
+   "CEBPE+CEBPB",
+   "FOSB+CEBPE",
+   "FOSB+IKZF3",
+   "FOXA3+FOXA1",
+   "FOXL2+MEIS1",
+   "PTPN12+UBASH3A",
+   "SGK1+TBX2",
+   "SNAI1+UBASH3B",
+   "UBASH3B+PTPN12",
+   "ZNF318+FOXL2"
+  ],
+  "shared_ttt": [
+   "DUSP9+IGDCC3",
+   "DUSP9+KLF1",
+   "DUSP9+MAPK1",
+   "ETS2+CEBPE",
+   "ETS2+CNN1",
+   "ETS2+IGDCC3",
+   "ETS2+IKZF3",
+   "ETS2+MAP7D1",
+   "ETS2+MAPK1",
+   "ETS2+PRTG",
+   "TGFBR2+ETS2"
+  ],
+  "shared_ttt_random": [
+   "BPGM+ZBTB1",
+   "CEBPE+CEBPB",
+   "FOSB+CEBPE",
+   "FOSB+IKZF3",
+   "FOXA3+FOXA1",
+   "FOXL2+MEIS1",
+   "PTPN12+UBASH3A",
+   "SGK1+TBX2",
+   "SNAI1+UBASH3B",
+   "UBASH3B+PTPN12",
+   "ZNF318+FOXL2"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}

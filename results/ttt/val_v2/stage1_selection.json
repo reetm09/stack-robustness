@@ -1,0 +1,10 @@
+{
+ "scope": "all_cross_cell",
+ "lr": "3e-4",
+ "median_wmse": {
+  "final_block_lr1e-4": 0.020364956284309815,
+  "final_block_lr3e-4": 0.017728979009357757,
+  "all_cross_cell_lr1e-4": 0.01788869487747962,
+  "all_cross_cell_lr3e-4": 0.016682238010809147
+ }
+}

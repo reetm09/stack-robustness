@@ -1,0 +1,124 @@
+{
+ "seconds": {
+  "icl_T1": 4.263938903808594,
+  "icl_T5": 23.236344575881958,
+  "shared_T1": 4.083817720413208,
+  "shared_T5": 23.453696727752686,
+  "ttt_adapt": 90.56040501594543,
+  "ttt_T1": 4.144634962081909,
+  "ttt_T5": 23.05027484893799,
+  "ttt_random_adapt": 98.39137029647827,
+  "ttt_random_T1": 4.5257039070129395,
+  "shared_ttt_adapt": 92.47285294532776,
+  "shared_ttt_T1": 4.569053411483765,
+  "shared_ttt_T5": 25.113457202911377,
+  "shared_ttt_random_adapt": 93.21475887298584,
+  "shared_ttt_random_T1": 4.317421913146973
+ },
+ "losses": {
+  "ttt": {
+   "own_prompts": [
+    0.45933838933706284,
+    0.40643109381198883
+   ],
+   "pairs": [
+    8.753633853716728,
+    6.109240684753809
+   ],
+   "null": [
+    8.094280481338501,
+    4.585195541381836
+   ]
+  },
+  "ttt_random": {
+   "own_prompts": [
+    0.47753507892290753,
+    0.4033436079819997
+   ],
+   "pairs": [
+    10.416539712956077,
+    4.523123104321329
+   ],
+   "null": [
+    9.903227615356446,
+    5.50128755569458
+   ]
+  },
+  "shared_ttt": {
+   "own_prompts": [
+    0.36923032253980637,
+    0.353355310857296
+   ],
+   "pairs": [
+    4.885586640773675,
+    2.9753516576228995
+   ],
+   "null": [
+    2.050352931022644,
+    2.7129486203193665
+   ]
+  },
+  "shared_ttt_random": {
+   "own_prompts": [
+    0.35293570657571155,
+    0.34678325553735095
+   ],
+   "pairs": [
+    3.1254841418642747,
+    4.570925663960607
+   ],
+   "null": [
+    1.9612172365188598,
+    3.225525426864624
+   ]
+  }
+ },
+ "tasks": {
+  "ttt": [
+   "CEBPB+CEBPA",
+   "CEBPE+CEBPA",
+   "JUN+CEBPB",
+   "KLF1+CEBPA",
+   "ZC3HAV1+CEBPA"
+  ],
+  "ttt_random": [
+   "FEV+MAP7D1",
+   "MAPK1+PRTG",
+   "PTPN12+PTPN9",
+   "SAMD1+PTPN12",
+   "UBASH3B+ZBTB25"
+  ],
+  "shared_ttt": [
+   "CEBPB+CEBPA",
+   "CEBPE+CEBPA",
+   "JUN+CEBPB",
+   "KLF1+CEBPA",
+   "ZC3HAV1+CEBPA"
+  ],
+  "shared_ttt_random": [
+   "FEV+MAP7D1",
+   "MAPK1+PRTG",
+   "PTPN12+PTPN9",
+   "SAMD1+PTPN12",
+   "UBASH3B+ZBTB25"
+  ]
+ },
+ "ttt_settings": {
+  "ttt": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "ttt_random": {
+   "steps": 250,
+   "lr": 0.0001
+  },
+  "shared_ttt": {
+   "steps": 250,
+   "lr": 0.0003
+  },
+  "shared_ttt_random": {
+   "steps": 250,
+   "lr": 0.0003
+  }
+ }
+}
