@@ -72,3 +72,27 @@ def test_eval_mode_changes_nothing_in_the_loss_but_dropout(tiny_model, tiny_coun
 
     for name in COMPONENTS + ["loss"]:
         assert out[False][name].item() == out[True][name].item(), name
+
+
+def test_revealed_cells_are_both_input_and_reconstruction_target_of_their_slots(tiny_model, tiny_counts):
+    # With `revealed`, the slots after the prompt show its cells (for a pair task, more
+    # prompt cells, as inference does) and reconstruction asks for those same cells there.
+    observed, truth = tiny_counts
+    teacher = teacher_embeddings(tiny_model, truth)
+    revealed = torch.poisson(torch.full_like(truth, 7.0), generator=torch.Generator().manual_seed(3))
+    revealed[:, :N_KEPT] = truth[:, :N_KEPT]
+    for seed in range(100):  # a draw that reveals at least two positions
+        torch.manual_seed(seed)
+        out = ttt_loss(tiny_model, observed, truth, n_kept=N_KEPT, teacher=teacher, revealed=revealed)
+        if out["n_context"] >= N_KEPT + 2:
+            break
+    shown = truth.clone()
+    shown[:, N_KEPT:out["n_context"]] = revealed[:, N_KEPT:out["n_context"]]
+    torch.manual_seed(seed)
+    same = ttt_loss(tiny_model, observed, shown, n_kept=N_KEPT, teacher=teacher)
+    torch.manual_seed(seed)
+    plain = ttt_loss(tiny_model, observed, truth, n_kept=N_KEPT, teacher=teacher)
+
+    for name in COMPONENTS + ["loss"]:
+        assert out[name].item() == pytest.approx(same[name].item(), rel=1e-6), name
+    assert out["recon_loss"].item() != pytest.approx(plain["recon_loss"].item(), rel=1e-6)

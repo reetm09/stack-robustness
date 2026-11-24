@@ -19,6 +19,11 @@ doubles. Single-perturbation cells are split into "adapt" and "infer" halves; tr
 on "adapt" and predictions start from "infer". Each pair is saved when it finishes
 (pairs/<double>.npz), so rerunning the same command resumes.
 
+Adaptation windows reveal more prompt cells after the prompt, as STACK's inference does
+(--reveal prompt; "target" reveals true target cells, as STACK's post-training and version 1
+of this study did). f_CLS stays frozen unless --train-cls. Norman genes that HGNC has renamed
+are mapped into the vocabulary slots they were missing from, unless --no-aliases.
+
 In the validation run, training the shared adapter also records, every 200 steps, its loss on
 fixed windows of the validation doubles and of as many training doubles (shared_history.json).
 This is a diagnostic for the report's loss curves, not a selection rule (PROTOCOL.md). It is
@@ -33,12 +38,13 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 import torch
 
 from stack_robustness.evaluation import EvalContext, markdown_table, median_tables
-from stack_robustness.genes import load_stack_genes
+from stack_robustness.genes import load_stack_genes, vocabulary_aliases
 from stack_ttt.adapt import AdaptConfig, adapt, task_losses
 from stack_ttt.lora import adapter_state, adapters_disabled, inject_lora, load_adapter_state, stack_targets
 from stack_ttt.model import load_stack
@@ -91,6 +97,11 @@ def main() -> None:
     parser.add_argument("--schedule", default="cosine", choices=["cosine", "constant"])
     parser.add_argument("--warmup", type=float, default=0.1)
     parser.add_argument("--no-null", action="store_true", help="leave out the null control task")
+    parser.add_argument("--reveal", default="prompt", choices=["prompt", "target"],
+                        help="what adaptation windows reveal after the prompt (version 1: target)")
+    parser.add_argument("--train-cls", action="store_true", help="co-adapt f_CLS (version 1 did)")
+    parser.add_argument("--no-aliases", action="store_true", help="match genes by symbol only, as Arc's code does")
+    parser.add_argument("--hgnc", type=Path, default=ROOT / "data/raw/hgnc/hgnc_complete_set.txt")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -115,14 +126,19 @@ def main() -> None:
 
     singles = sorted(split.loc[split["kind"].eq("single"), "condition"])
     vocab = load_stack_genes(args.vocab)
+    aliases = {}
+    if not args.no_aliases:
+        var = ad.read_h5ad(args.raw, backed="r").var
+        aliases = vocabulary_aliases(list(map(str, var.index)), list(var["ensemble_id"].astype(str)), vocab, args.hgnc)
     monitored = held_out if args.holdout == "val" else []  # only for the validation loss curve
-    cells = load_norman(args.raw, vocab, conditions=set(singles) | set(train_doubles) | {CONTROL} | set(monitored))
+    cells = load_norman(args.raw, vocab, conditions=set(singles) | set(train_doubles) | {CONTROL} | set(monitored),
+                        aliases=aliases)
     assert not set(cells.condition) & (set(held_out) - set(monitored)), "test doubles must never be loaded"
     pools = cell_pools(cells.condition, seed=args.seed)
     assert not {key[0] for key in pools} & set(held_out), "held-out cells must never be pooled"
     reference = pools[(CONTROL, "infer")]
     panel = list(ctx.truth.columns)
-    log(f"loaded {cells.counts.shape[0]} cells")
+    log(f"loaded {cells.counts.shape[0]} cells; {len(aliases)} genes renamed into the vocabulary")
 
     model, _ = load_stack(args.checkpoint, device=device)
     inject_lora(model, stack_targets(model, args.scope), rank=args.rank, alpha=args.alpha)
@@ -130,7 +146,7 @@ def main() -> None:
 
     def config(steps, lr):
         return AdaptConfig(steps=steps, lr=lr, weight_decay=args.weight_decay, schedule=args.schedule,
-                           warmup=args.warmup, seed=args.seed)
+                           warmup=args.warmup, seed=args.seed, reveal=args.reveal, train_cls=args.train_cls)
 
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "pairs").mkdir(exist_ok=True)
@@ -140,7 +156,7 @@ def main() -> None:
     if any(arm.startswith("shared") for arm in args.arms):
         path = args.shared_adapter or args.out / "shared_adapter.pt"
         settings = {"scope": args.scope, "rank": args.rank, "alpha": args.alpha, "holdout": args.holdout,
-                    "null": null, **asdict(config(args.shared_steps, args.shared_lr))}
+                    "null": null, "aliases": not args.no_aliases, **asdict(config(args.shared_steps, args.shared_lr))}
         settings["weights"] = str(settings["weights"])
         if path.exists():
             saved = torch.load(path, map_location=device, weights_only=True)

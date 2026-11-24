@@ -78,8 +78,9 @@ def test_task_window_puts_prompt_cells_first_and_pairs_queries_with_targets():
     counts = sparse.csr_matrix(np.repeat(np.arange(30, dtype=np.float32)[:, None], 2, axis=1))  # row i holds i
     rng = np.random.default_rng(0)
 
-    observed, truth = task_window(counts, np.arange(0, 10), np.arange(10, 20), np.arange(20, 30), 8, 2, rng)
+    observed, truth, revealed = task_window(counts, np.arange(0, 10), np.arange(10, 20), np.arange(20, 30), 8, 2, rng)
 
+    assert revealed is None  # by default a revealed position shows its target, as in STACK's post-training
     assert observed.shape == truth.shape == (8, 2)
     assert np.array_equal(observed[:2], truth[:2]) and set(observed[:2, 0]) <= set(range(10))
     assert set(observed[2:, 0]) <= set(range(10, 20)) and set(truth[2:, 0]) <= set(range(20, 30))
@@ -88,9 +89,35 @@ def test_task_window_puts_prompt_cells_first_and_pairs_queries_with_targets():
 def test_a_prompt_only_window_has_no_query_cells():
     counts = sparse.csr_matrix(np.repeat(np.arange(6, dtype=np.float32)[:, None], 2, axis=1))
 
-    observed, truth = task_window(counts, np.arange(6), None, None, 4, 4, np.random.default_rng(0))
+    for reveal in ("target", "prompt"):
+        observed, truth, revealed = task_window(counts, np.arange(6), None, None, 4, 4, np.random.default_rng(0),
+                                                reveal=reveal)
 
-    assert np.array_equal(observed, truth) and set(observed[:, 0]) <= set(range(6))
+        assert np.array_equal(observed, truth) and set(observed[:, 0]) <= set(range(6))
+        assert revealed is None  # nothing follows the prompt, so nothing is revealed
+
+
+def test_revealing_prompt_cells_draws_them_with_the_prompt_as_one_sample():
+    # STACK's inference fills the slots between the prompt and the query with more prompt
+    # cells, so adaptation windows can reveal those instead of target cells. Prompt and
+    # revealed cells are one draw from the prompt pool: no cell repeats while the pool lasts.
+    counts = sparse.csr_matrix(np.repeat(np.arange(40, dtype=np.float32)[:, None], 2, axis=1))  # row i holds i
+    rng = np.random.default_rng(0)
+
+    observed, truth, revealed = task_window(counts, np.arange(0, 20), np.arange(20, 30), np.arange(30, 40), 8, 2, rng,
+                                            reveal="prompt")
+
+    assert revealed.shape == observed.shape == truth.shape == (8, 2)
+    assert np.array_equal(revealed[:2], observed[:2]) and np.array_equal(observed[:2], truth[:2])
+    drawn = revealed[:, 0].tolist()
+    assert len(set(drawn)) == 8 and set(drawn) <= set(range(20))
+    assert set(observed[2:, 0]) <= set(range(20, 30)) and set(truth[2:, 0]) <= set(range(30, 40))
+
+
+def test_an_unknown_reveal_is_refused():
+    counts = sparse.csr_matrix(np.ones((6, 2), dtype=np.float32))
+    with pytest.raises(ValueError):
+        task_window(counts, np.arange(3), np.arange(3, 6), np.arange(3, 6), 4, 2, np.random.default_rng(0), reveal="query")
 
 
 def test_shared_tasks_use_every_training_double_in_both_orders():

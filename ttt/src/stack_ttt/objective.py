@@ -38,12 +38,15 @@ def teacher_embeddings(model, truth: torch.Tensor) -> torch.Tensor:
     return out["final_cell_embeddings"].detach()
 
 
-def ttt_loss(model, observed, truth, n_kept: int, teacher, weights: LossWeights = LossWeights()) -> dict:
+def ttt_loss(model, observed, truth, n_kept: int, teacher, weights: LossWeights = LossWeights(), revealed=None) -> dict:
     """Loss on one window of counts (batch x cells x genes).
 
     Positions [0, n_kept) are prompt cells (observed == truth). The rest are query cells:
     `observed` holds the cells to transform and `truth` the target cells. A random share
-    of query positions is revealed as context, as in STACK's fine-tuning.
+    of query positions, right after the prompt, is revealed as context, as in STACK's
+    fine-tuning: they show their target cells, or, given `revealed`, its cells there, which
+    then also stand in for the targets of those positions (input, library and
+    reconstruction alike). The teacher still sees the true window.
     """
     batch, n_cells, n_genes = observed.shape
     device = observed.device
@@ -52,6 +55,9 @@ def ttt_loss(model, observed, truth, n_kept: int, teacher, weights: LossWeights 
     features_log = torch.log1p(observed)
     time = torch.rand(1, device=device).item() * 0.9375
     n_context = n_kept + int((n_cells - n_kept) * time)
+    if revealed is not None:
+        truth = truth.clone()
+        truth[:, n_kept:n_context] = revealed[:, n_kept:n_context]
     features_log[:, n_kept:n_context] = torch.log1p(truth[:, n_kept:n_context])
     masked, mask = model.apply_finetune_mask(features_log)
     x = model._reduce_and_tokenize(masked)

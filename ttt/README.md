@@ -157,8 +157,8 @@ pair-orders. Query cells there carry the other single perturbation.
   read the target from them in training, then meets A cells there at inference.
 - **The validation loss curves** were measured with A+B cells revealed, so they do not
   show that an adapter learned to use the prompt.
-- **Before the test run,** inference with no context slots (`context_ratio` 0) will show
-  whether this matters.
+- **Version 2 reveals prompt cells there instead,** as inference does (PROTOCOL.md, Changes).
+  Version 1's runs are kept for comparison in `results/ttt/val`.
 
 ## STACK does not reproduce Norman's cells (and what the comparison does about it)
 
@@ -177,7 +177,8 @@ What is known about the cause:
 - This pipeline is not the cause. `scripts/pipeline_check.py` (output in
   `results/ttt/pipeline_check/`) finds it identical to Arc's own code:
   - the same weights (largest difference 0.0);
-  - the same Norman count matrix (13,815 cells, no column differs);
+  - the same Norman count matrix (13,815 cells, no column differs), before version 2's
+    renaming of 713 genes into the vocabulary (PROTOCOL.md, Changes) adds their columns;
   - the same generated cells for the same seed, on Norman and on Arc's tutorial data
     (`Stack-DrugPBMC-Example`).
 - STACK shifts Arc's tutorial data too, but less. In both checks below (T = 1), STACK generates

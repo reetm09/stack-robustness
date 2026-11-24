@@ -1,4 +1,5 @@
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -175,3 +176,15 @@ def test_fresh_adapters_start_from_the_runs_seed_whatever_ran_before(setup):
         runs.append([h["loss"] for h in adapt(model, cells, tasks, pools, CONFIG, cls_base=cls_base)["history"]])
 
     assert runs[0] == runs[1]
+
+
+def test_adapting_with_revealed_prompt_cells_trains_and_differs_from_revealed_targets(setup):
+    model, cells, pools, tasks = setup
+    cls_base = {k: v.clone() for k, v in model.cls.state_dict().items()}
+    runs = {}
+    for reveal in ("target", "prompt"):
+        config = replace(CONFIG, steps=6, reveal=reveal)
+        runs[reveal] = [h["loss"] for h in adapt(model, cells, tasks, pools, config, cls_base=cls_base)["history"]]
+
+    assert all(math.isfinite(x) for x in runs["prompt"])
+    assert runs["prompt"] != runs["target"]

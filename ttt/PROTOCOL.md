@@ -66,17 +66,17 @@ and `marc/test_time_train.py`):
 - AdamW with weight decay 0.01;
 - a cosine schedule with linear warmup over the first 10% of steps;
 - LoRA alpha 16 and rank 8;
-- f_CLS trained alongside;
+- f_CLS frozen (version 1 trained it alongside; see Changes);
 - the null task on.
 
 **Steps:**
 1. **Shared adapter.** Try scope {final block + decoder, cross-cell attention in all layers +
    decoder} × learning rate {1e-4, 3e-4}, each for 2,000 steps. Select the setting with the
    lowest median validation wMSE of `shared_T1_diff`.
-2. **TTT learning rate.** With the selected scope, try {3e-5, 1e-4} at 50 steps, separately
+2. **TTT learning rate.** With the selected scope, try {3e-5, 1e-4, 3e-4} at 50 steps, separately
    for `shared_ttt` (from the selected shared adapter) and for `ttt` (from frozen STACK).
 3. **TTT steps.** For each of those two arms, run 250 steps at its better learning rate.
-   Each arm keeps whichever of its three settings has the lowest median validation wMSE.
+   Each arm keeps whichever of its four settings has the lowest median validation wMSE.
    The random-pair arms copy their neighbour arm's settings.
 
 **Ties.** A setting within 1% of the best goes to the cheaper option: fewer steps, then
@@ -131,7 +131,9 @@ Each prediction uses 2 draws.
 ## Changes after this point
 
 The first two changes were made before any validation score. The third was made after
-stage 1's scores but before any TTT result, and changes no setting or rule.
+stage 1's scores but before any TTT result, and changes no setting or rule. The fourth
+(version 2) was made after version 1's stage 1 and its 50-step TTT scores. The test set is
+still untouched, and no selection rule changed.
 
 - **2026-11-22: a workaround for small query sets.** arc-stack 0.1.3 fills a short
   window with at most one extra copy of the query cells. A query set smaller than half
@@ -164,6 +166,39 @@ stage 1's scores but before any TTT result, and changes no setting or rule.
   - **The fix:** it now seeds first (tested).
   - **Scope:** stage 1's shared adapters were trained before this change. Every TTT run,
     and the test run's shared adapter, use the new initialisation.
+
+- **2026-11-23: version 2, after reading STACK's paper and code.** All validation is redone
+  in `results/ttt/val_v2`. Version 1 (`results/ttt/val`) stays as the comparison in which
+  true targets were revealed.
+  - **Revealed slots hold prompt cells.**
+    - What changed: adaptation windows now reveal more cells of the prompt's condition
+      after the prompt (`--reveal prompt`), drawn with the prompt cells as one sample. That
+      is A's cells for a pair task and control cells for the null task, and those cells are
+      the reconstruction targets of their slots (tested).
+    - Why: STACK's post-training reveals true cells there, which share the prompt's
+      condition, and its inference fills those slots with prompt cells. Version 1 revealed
+      true A+B cells, which inference never shows, so an adapter could read the target from
+      them.
+  - **f_CLS is frozen.**
+    - At T = 1 it plays no part, because every cell is replaced in one step.
+    - Trained on these windows, it would learn to tell A's cells from the query positions'
+      outputs. For T > 1, STACK's generation keeps first the cells f_CLS scores as most
+      like the prompt (read from the code, not measured).
+  - **Renamed genes are mapped in.** 713 Norman genes that HGNC has renamed are moved into
+    the vocabulary slots they were missing from (`stack_robustness.genes.vocabulary_aliases`).
+    Without this, STACK never sees 2.4% of Norman's counts. The scoring genes and the truth
+    are unchanged.
+  - **The TTT learning rates add 3e-4,** marc's config value. In version 1, the best rate
+    sat at the top of its grid both in stage 1 (both scopes) and for `ttt` at 50 steps, so
+    a null result could have been under-training.
+  - **Unchanged, and why:**
+    - Prompt size: prompts of 333 or more cells and smaller ones gave the same prompt
+      statistic.
+    - The T = 1 headline: this protocol fixes it.
+    - The frozen teacher: Arc's README calls its procedure frozen-teacher fine-tuning, and
+      2,000 steps would see at most 4 teacher updates.
+    - No confidence filtering: the paper states one only for Perturb Sapiens.
+    - Adapters instead of full fine-tuning: that is the TTT recipe.
 
 ## Decisions taken by these rules
 

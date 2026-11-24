@@ -27,6 +27,7 @@ class AdaptConfig:
     seed: int = 0
     schedule: str = "constant"  # "cosine": linear warmup, then cosine decay to zero
     warmup: float = 0.0  # share of the steps spent warming up
+    reveal: str = "target"  # what revealed positions show: "target" cells, or more "prompt" cells (windows.task_window)
 
 
 def lr_factor(step: int, total: int, warmup_steps: int, schedule: str) -> float:
@@ -46,11 +47,13 @@ def _window_loss(model, cells, task, pools, config: AdaptConfig, rng, device) ->
     """The loss components on one window of `task`, drawn with `rng`."""
     prompt, query, target = task_rows(task, pools, cells.condition)
     kept = config.n_kept if query is not None else config.n_cells
-    observed, truth = task_window(cells.counts, prompt, query, target, config.n_cells, kept, rng)
+    observed, truth, revealed = task_window(cells.counts, prompt, query, target, config.n_cells, kept, rng,
+                                            reveal=config.reveal)
     observed = torch.from_numpy(observed)[None].to(device)
     truth = torch.from_numpy(truth)[None].to(device)
+    revealed = None if revealed is None else torch.from_numpy(revealed)[None].to(device)
     teacher = teacher_embeddings(model, truth) if query is not None else None
-    return ttt_loss(model, observed, truth, kept, teacher, config.weights)
+    return ttt_loss(model, observed, truth, kept, teacher, config.weights, revealed=revealed)
 
 
 def _devices(device) -> list:

@@ -1,9 +1,13 @@
-"""The choices of validation stage 2 (PROTOCOL.md): each TTT arm's learning rate, then its setting.
+"""The choices of validation (PROTOCOL.md): stage 1's shared adapter, then each TTT arm's setting.
 
-    uv run python scripts/select_ttt.py lr ../results/ttt/val              # prints "<ttt lr> <shared_ttt lr>"
-    uv run python scripts/select_ttt.py final ../results/ttt/val 1e-4 3e-5  # writes stage2_selection.json
+    uv run python scripts/select_ttt.py shared ../results/ttt/val_v2             # prints "<scope> <lr>"
+    uv run python scripts/select_ttt.py lr ../results/ttt/val_v2                 # prints "<ttt lr> <shared_ttt lr>"
+    uv run python scripts/select_ttt.py final ../results/ttt/val_v2 1e-4 3e-4    # writes stage2_selection.json
 
-Each run directory is ttt_lr<lr>_steps<steps>, written by scripts/val_stage2.sh.
+Stage 1's runs are shared_<scope>_lr<lr>, stage 2's ttt_lr<lr>_steps<steps> (val_stage1.sh,
+val_stage2.sh). Each choice takes the lowest median validation wMSE of the diff-scored T = 1
+prediction; a setting within 1% of it goes to the cheaper option: fewer steps, then the
+smaller scope.
 """
 
 import json
@@ -13,28 +17,43 @@ from pathlib import Path
 import pandas as pd
 
 ARMS = ("ttt", "shared_ttt")
-RATES = ("3e-5", "1e-4")
+RATES = ("3e-5", "1e-4", "3e-4")  # TTT learning rates at 50 steps
+SCOPES = ("final_block", "all_cross_cell")  # smaller first
+SHARED_RATES = ("1e-4", "3e-4")
 
 
-def median(val: Path, lr: str, steps: int, arm: str) -> float:
-    """Median validation wMSE of the arm's diff-scored T = 1 prediction in one run."""
-    s = pd.read_csv(val / f"ttt_lr{lr}_steps{steps}" / "scores.csv")
-    s = s[(s["metric"] == "wmse") & (s["panel"] == "stack_genes") & (s["model"] == f"{arm}_T1_diff")]
-    assert not s.empty, f"no {arm} scores in ttt_lr{lr}_steps{steps}"
+def median(val: Path, run: str, model: str) -> float:
+    """Median validation wMSE of one model's predictions in one run."""
+    s = pd.read_csv(val / run / "scores.csv")
+    s = s[(s["metric"] == "wmse") & (s["panel"] == "stack_genes") & (s["model"] == model)]
+    assert not s.empty, f"no {model} scores in {run}"
     return float(s["value"].median())
+
+
+def cheapest_within_one_percent(medians: dict, cost) -> tuple:
+    best = min(medians.values())
+    return min((k for k, v in medians.items() if v <= 1.01 * best), key=lambda k: (cost(k), medians[k]))
 
 
 def main() -> None:
     stage, val = sys.argv[1], Path(sys.argv[2])
+    if stage == "shared":  # step 1; every setting runs 2,000 steps, so ties go to the smaller scope
+        medians = {(scope, lr): median(val, f"shared_{scope}_lr{lr}", "shared_T1_diff")
+                   for scope in SCOPES for lr in SHARED_RATES}
+        scope, lr = cheapest_within_one_percent(medians, lambda k: SCOPES.index(k[0]))
+        (val / "stage1_selection.json").write_text(json.dumps(
+            {"scope": scope, "lr": lr, "median_wmse": {f"{s}_lr{r}": v for (s, r), v in medians.items()}}, indent=1) + "\n")
+        print(scope, lr)
+        return
     if stage == "lr":  # step 2: the better learning rate at 50 steps
-        print(*(min(RATES, key=lambda lr: median(val, lr, 50, arm)) for arm in ARMS))
+        print(*(min(RATES, key=lambda lr: median(val, f"ttt_lr{lr}_steps50", f"{arm}_T1_diff")) for arm in ARMS))
         return
     better = dict(zip(ARMS, sys.argv[3:5]))
     selection = {}
-    for arm in ARMS:  # step 3: the best of the arm's three settings; within 1% of it, fewer steps
-        medians = {(steps, lr): median(val, lr, steps, arm) for steps, lr in [(50, r) for r in RATES] + [(250, better[arm])]}
-        best = min(medians.values())
-        steps, lr = min((k for k, v in medians.items() if v <= 1.01 * best), key=lambda k: (k[0], medians[k]))
+    for arm in ARMS:  # step 3: the arm's best setting; within 1% of it, fewer steps
+        settings = [(50, r) for r in RATES] + [(250, better[arm])]
+        medians = {(steps, lr): median(val, f"ttt_lr{lr}_steps{steps}", f"{arm}_T1_diff") for steps, lr in settings}
+        steps, lr = cheapest_within_one_percent(medians, lambda k: k[0])
         selection[arm] = {"lr": lr, "steps": steps,
                           "median_wmse": {f"lr{r}_steps{s}": v for (s, r), v in medians.items()}}
     for arm in ARMS:  # the random-pair arms copy their neighbour arm's settings
