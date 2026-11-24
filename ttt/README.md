@@ -389,13 +389,25 @@ Disclosure: the pilot's 3 doubles (AHR+FEV, AHR+KLF1, BPGM+SAMD1) are held-out t
 doubles, and they have informed the method choices above. All further tuning and
 diagnosis uses validation doubles.
 
+The remote HPC cluster's package versions (checked 24 November): on Python 3.12 this lockfile
+already installs the cluster's pandas 3.1.1, anndata 0.13.4, numpy 2.5.5, scipy 1.18.1,
+scvi-tools 1.5.2, pytorch-lightning 2.6.6 and geomloss 0.3.1, so every result here was run on
+them (the lock's pandas 2.3.3 and scvi-tools 1.4.2 apply only below Python 3.12). Only torch
+differs: 2.15.0 built for CUDA 13 here, 2.14.1 built for CUDA 12.6 there. Under the cluster's
+torch, both test suites pass (57 and 55 tests). A small CPU run (one validation double, `icl`
+and `shared`) gives bit-identical scores, predictions and adapter weights to the same run under
+2.15.0. A small GPU run of all six arms with the CUDA 12.6 build gives scores within 0.04% of
+the same run under 2.15.0 with CUDA 13.
+
 Open:
 - **Version 1's layout on test.** It did better on validation ("Two layouts for the slots
   after the prompt"). A test run with it would now be exploratory, and would take about 4 GPU
   hours.
-- **The remote HPC cluster's package versions** are newer than this lockfile's: pandas 3.1.1,
-  anndata 0.13.4, scvi-tools 1.5.2, and torch 2.14.1 with CUDA 12.6. The code has not been
-  run under them yet.
+- **Running on the cluster itself.** The scripts call `uv run python`, which would install this
+  lockfile's torch 2.15.0 (built for CUDA 13) instead of using the cluster's torch. If the
+  driver can't run CUDA 13, `norman_ttt.py` falls back to the CPU without saying so. Torch also
+  compiles a few GPU kernels with Triton on first use (here an outer-product `bmm`), which needs
+  a C compiler on the GPU node; `TORCH_DISABLE_NATIVE_JIT=1` turns those kernels off.
 
 Deferred:
 - The X-Atlas/Orion arm, which needs a slice of the 126 GB Hugging Face copy.
