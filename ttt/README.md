@@ -57,6 +57,109 @@ These were checked against arc-stack 0.1.3 and `Stack-Large-Aligned`:
 - Generation returns counts sampled from the negative-binomial output. They are
   normalized with the query cells' all-gene totals, the convention of the ground truth.
 
+## STACK's paper and code, against this study
+
+**What was read.**
+- **The paper:** Dong et al., *Stack: In-Context Learning of Single-Cell Biology*,
+  bioRxiv (2026), doi:10.64898/2026.01.09.698608. This covers the main text and Methods,
+  from a text extraction that lacks the tables, Box 1, equations, figures and supplement.
+  "The paper does not" below means "the main text and Methods do not".
+- **The code:** github.com/ArcInstitute/stack at v0.1.3, which `uv sync` installs; GitHub
+  main differs only in its README.
+  - Read in full: `models/finetune/model.py`, `models/finetune/mixins.py`,
+    `finetune/lightning.py`, `configs/finetuning/ft_parsecg.yaml`, and three functions of
+    `models/core/inference.py`: `get_prediction`, `get_incontext_prediction` and
+    `get_incontext_generation`.
+  - Read in part: `data/finetuning/datasets.py` (window construction), `models/core/base.py`,
+    `models/utils.py`, `cli/generation.py`, the prediction tutorial and the README.
+
+**Where this study follows them.**
+- **Diff scoring is the paper's "synthetic control".** For perturbational in-context
+  tasks, the paper also generates from the unperturbed prompt sample and uses that as the
+  reference (Results, section 2.3; Methods, "Evaluation data construction").
+- **Generation uses Arc's CLI settings.** These are `mdm` mode, 25% prompt and context
+  rising from 0.2 to 0.4 (`cli/generation.py`). The Python function's own default is
+  `vanilla`, which re-predicts every cell at each step.
+- **The adaptation loss is STACK's post-training loss** (`models/finetune/model.py`,
+  `mixins.py`):
+  - 10–30% of genes masked;
+  - a revealed share of the non-prompt positions, up to 0.9375;
+  - energy distance on the 1,000 genes with the largest Pearson-residual variance and on
+    teacher embeddings, divided by 1 − t;
+  - reconstruction on prompt and revealed cells;
+  - sliced Wasserstein (weight 0.01) and the classifier's cross-entropy.
+- **The teacher is called as `finetune/lightning.py` calls it.** It sees the true
+  window, unmasked, with every position treated as a prompt cell.
+- **The checkpoint's settings match the paper's post-training.** Dropout is 0, there are
+  128 prompt cells per 512-cell window, learning rate 2e-5 and weight decay 0.003.
+- **Repeating a small query set has precedent.** The paper upsampled query cells to at
+  least 2,000 or 1,000 per cell type in two of its tasks.
+
+**Where it departs.**
+- **Generation steps.** The headline here is T = 1 for cost, with T = 5 beside it.
+  The paper's in-context benchmarks use T = 5 (Fig. 3 caption) and report modest gains
+  from several steps over one (Fig. S9).
+- **Combining perturbations.** The paper's method for pairs is: "For combinatorial
+  perturbation evaluations, we computed weighted sums of single-perturbation Stack
+  predictions", with weights chosen by grid search. It does not prompt with one
+  perturbation and query cells carrying another. That is this study's own use of STACK.
+- **Prompt size.** For its Perturb Sapiens atlas, the paper keeps only conditions with
+  more than 332 cells, "the minimum needed to fill one prompt cell set at the final Stack
+  generation step". It states no floor for its benchmarks.
+  - Here a prompt is one single's infer half, median 248 cells over the 105 singles.
+  - 21 of the 42 validation prompts, and 29 of the 52 test prompts, are smaller than 333.
+    arc-stack then repeats their cells within a window (the modulo over `base_indices` in
+    `get_incontext_prediction`).
+  - The control prompt (2,963 cells) never repeats.
+- **The cells STACK was aligned on.** Post-training used 45M cells from CELLxGENE
+  datasets of over 50,000 cells and at least five donors, and Parse's 10M PBMCs. Its
+  limitations section says the model "is post-trained primarily on in vivo cell types,
+  especially immune cells". Norman's K562 cells are an in vitro leukemia line.
+- **Gene names.** Post-training read CELLxGENE genes by `feature_name`, its current
+  symbols (`configs/finetuning/ft_parsecg.yaml`). The vocabulary is the union of each
+  scBaseCount file's top 1,000 variable genes, and 392 of its names are symbols HGNC has
+  since renamed. That is consistent with those genes (H3F3A, H2AFZ, ...) collapsing in
+  every dataset tried.
+- **Training.**
+  - Post-training updated every weight with AdamW at 2e-5, an effective batch of 32 and
+    bf16. It moved the teacher 5% toward the student every 500 steps.
+  - Here only the adapters and f_CLS train, one window per step, in fp32, with the teacher
+    frozen. Arc's README calls its procedure "frozen teacher" fine-tuning.
+- **Confidence filtering.** Perturb Sapiens drops generated cells whose classifier logit
+  is above 2.5, and the paper does not say whether its benchmarks did. Here every
+  generated cell is kept.
+
+**What frozen STACK does with a Norman prompt** (validation, T = 1, measured on saved
+predictions). These numbers come from the 21 validation doubles in both prompt orders, 42
+pair-orders. Query cells there carry the other single perturbation.
+- **Measure:** compare generating with A's prompt against generating with a control prompt.
+- **The shift is small and runs the wrong way.** Its size is a median 14% of A's own effect
+  on A's top 200 genes. Its median correlation with A's effect is −0.23: 19 of 42 are below
+  −0.3, and 2 are above +0.3.
+- **Prompt size doesn't change it.** Prompts of 333 or more cells give a pooled
+  coefficient of −0.03, and smaller ones −0.01.
+- **The three pilot pairs behave the same at T = 5.**
+- **The generated profile keeps part of the query's own perturbation.** Pooled over
+  genes, it is 0.30 × the query's effect − 0.01 × the prompt's (R² 0.21).
+- **The shared adapter (final block, 1e-4) turns the shift toward A's effect,** with a
+  median correlation of +0.34 (23 of 42 above +0.3). The shift stays small, at 21% of the
+  effect size.
+- **Not yet measured:** whether frozen STACK carries a Norman prompt onto control query
+  cells, the layout the paper uses.
+
+**A mismatch between adapter training and inference.**
+- **At inference,** arc-stack fills the slots between the prompt and the query with more
+  prompt cells (`get_prediction`). At T = 1, the first 65% of each window is prompt.
+- **In STACK's post-training,** those slots hold revealed true cells, and they share the
+  prompt's condition. So its training and inference agree.
+- **This study's pair windows** reveal true A+B cells in those slots
+  (`objective.ttt_loss`), and those do not share the prompt's condition, A. An adapter can
+  read the target from them in training, then meets A cells there at inference.
+- **The validation loss curves** were measured with A+B cells revealed, so they do not
+  show that an adapter learned to use the prompt.
+- **Before the test run,** inference with no context slots (`context_ratio` 0) will show
+  whether this matters.
+
 ## STACK does not reproduce Norman's cells (and what the comparison does about it)
 
 Run frozen on Norman's K562 cells, STACK shifts hundreds of genes away from the data
@@ -102,6 +205,15 @@ What is known about the cause:
   STACK is scored here as the tutorial's synthetic control does: generated with the drug
   prompt minus generated with a DMSO prompt. Without that subtraction its correlation
   falls to 0.27, and it is worse on 11 of 14 drugs.
+
+  The paper reports an advantage for STACK on this dataset (Fig. 3E). Its evaluation is
+  not the same as this check's:
+
+  | | the paper | this check |
+  |---|---|---|
+  | metrics | Cell-Eval, on the top 2,000 variable genes | Pearson correlation over every expressed gene |
+  | query cells | upsampled per cell type | as measured |
+  | prompt | its own task construction | T cells only, mostly 318–533 cells (two of 14 under 333) |
 
 Raw scoring charges this shift to STACK, and an adapter can "improve" just by learning it.
 `norman_compare.py` therefore reports, side by side:
