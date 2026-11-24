@@ -7,12 +7,16 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
 
 ## Status
 
-- **Python API only.** No file loader and no command line yet. They wait on the decisions below.
+- **Loads X-Atlas/Orion and runs from the command line** (`xatlas.py`, `run.py`; see
+  "First run" below). The loader follows the release's schema as read from its files on
+  2026-11-24. It is tested only on synthetic files with that schema.
 - **Depends on code not yet on `main`.** `stack_ttt` (`ttt/`) and the shared
   `stack_robustness` package are on Andrew's branch. `pyproject.toml` points at them by path
   (`..` and `../ttt`), so `uv sync` here works only once they are on the same branch.
-- **Tested** with the unit and smoke tests in `tests/`, on synthetic cells and a tiny STACK,
-  on CPU. **Not yet run** on real data, on the real checkpoint, or on a GPU.
+- **Tested** with the tests in `tests/`, on synthetic cells and a tiny STACK, on CPU, with the
+  server's package versions (torch 2.14.1, arc-stack 0.1.3, pytorch-lightning 2.6.6, scvi-tools
+  1.5.2, geomloss 0.3.1, pandas 3.1.1, anndata 0.13.4, numpy 2.5.5, scipy 1.18.1). **Not yet
+  run** on real data, on the real checkpoint, or on a GPU.
 - **Needs Andrew's branch from `c0ffb27` on**, where `task_window` returns three values.
   Validation windows follow `AdaptConfig.reveal`, like training. The library default is
   `"target"` (reveal true target cells); Andrew's Study 4 scripts now use `"prompt"`, which
@@ -33,6 +37,10 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
      X-Atlas validation `EvalContext`.
    - Step count and learning rate. The defaults are `norman_ttt.py`'s shared-adapter
      settings, not tuned for any cell line.
+   - What windows reveal after the prompt (`--reveal target` or `prompt`), and whether f_CLS
+     is trained (`--freeze-cls`). Andrew's Study 4 version 2 reveals prompt cells.
+   - How many genes and cells a full run uses. All training cells would need about 130 GB of
+     memory, so runs use a subset (`--train-genes`, `--max-cells-per-gene` and so on).
 
 ## The split
 
@@ -73,6 +81,54 @@ Outputs in `--out`:
   cells per line in batches with controls, its number of guides, and why it was excluded.
 - `controls.csv.gz`: one row per pooled control cell: `cell_id`, `line`, `batch`, `pool`.
 - `split.json`: the settings, input files, column names and counts.
+
+## First run
+
+The proposal's first step (PDF p. 4) is to fine-tune on a small training and validation
+subset and measure memory and runtime before scaling. `stack_cellline.run` does that in two
+steps.
+
+**Inputs:**
+
+- the checkpoint and STACK's vocabulary file (paths as in Andrew's README:
+  `data/raw/stack/bc_large_aligned.ckpt`, `data/raw/stack_vocab/basecount_1000per_15000max.pkl`);
+- `gene_metadata.parquet` (0.9 MB), from the release's `metadata/` folder;
+- the per-line metadata tables written by `scripts/fetch_xatlas_obs.py`;
+- the split in `splits/xatlas_orion/`;
+- the batch files: either a local copy of the release's `data/` folder, or
+  `hf://datasets/Xaira-Therapeutics/X-Atlas-Orion/data`, which streams only the files a run
+  needs (0.3–0.5 GB each).
+
+**Code:** until Andrew's code reaches `main`, put his branch next to this one and add it to
+`PYTHONPATH`. The run also imports scanpy and scikit-learn through his shared package.
+
+```bash
+git worktree add ../andrew-code origin/andrew
+export PYTHONPATH=cellline/src:../andrew-code/src:../andrew-code/ttt/src
+```
+
+**Step 1: plan.** This reads no expression data. It writes `plan.json` (genes, cells and batch
+files) and prints a summary.
+
+```bash
+python -m stack_cellline.run --plan-only \
+    --checkpoint data/raw/stack/bc_large_aligned.ckpt \
+    --vocab data/raw/stack_vocab/basecount_1000per_15000max.pkl \
+    --gene-metadata <dir>/gene_metadata.parquet \
+    --obs HEK293T=<obs_dir>/HEK293T_obs.parquet HCT116=<obs_dir>/HCT116_obs.parquet \
+    --split cellline/splits/xatlas_orion \
+    --data hf://datasets/Xaira-Therapeutics/X-Atlas-Orion/data \
+    --train-genes 50 --val-genes 10 --max-cells-per-gene 256 --max-controls 2000 \
+    --batches-per-line 10 \
+    --out results/cellline/first_run
+```
+
+**Step 2: short run.** Use the same command without `--plan-only` and add `--steps 50`. It
+writes `adapter.pt`, `history.jsonl`, `val.json` and `run.json` next to `plan.json`.
+
+The caps above are a starting point, not a recommendation. Ten batch files per line give
+roughly 10–20 cells per gene, which is enough to check the pipeline, memory and runtime, not
+to judge accuracy.
 
 ## The task
 
