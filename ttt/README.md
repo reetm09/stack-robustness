@@ -144,21 +144,39 @@ pair-orders. Query cells there carry the other single perturbation.
 - **The shared adapter (final block, 1e-4) turns the shift toward A's effect,** with a
   median correlation of +0.34 (23 of 42 above +0.3). The shift stays small, at 21% of the
   effect size.
-- **Not yet measured:** whether frozen STACK carries a Norman prompt onto control query
-  cells, the layout the paper uses.
+- **The paper's own layout gives the same answer.**
+  - Setup: each validation single's prompt onto 537 control query cells, against a control
+    prompt onto the same cells, at T = 1 and context 0.4 (`scripts/prompt_checks.py`).
+  - Result: the median correlation with the prompt's effect is −0.25, with 0 of 31 prompts
+    above +0.3 and 15 below −0.3, and a median size of 14%.
+  - So frozen STACK does not read Norman's perturbations from a prompt at all. It is not
+    only failing to compose them onto perturbed cells.
 
-**A mismatch between adapter training and inference.**
+**Two layouts for the slots after the prompt.**
 - **At inference,** arc-stack fills the slots between the prompt and the query with more
   prompt cells (`get_prediction`). At T = 1, the first 65% of each window is prompt.
 - **In STACK's post-training,** those slots hold revealed true cells, and they share the
   prompt's condition. So its training and inference agree.
-- **This study's pair windows** reveal true A+B cells in those slots
-  (`objective.ttt_loss`), and those do not share the prompt's condition, A. An adapter can
-  read the target from them in training, then meets A cells there at inference.
+- **Version 1's pair windows** revealed true A+B cells in those slots (`objective.ttt_loss`),
+  which do not share the prompt's condition, A. An adapter could read the target from them
+  in training, then met A cells there at inference.
 - **The validation loss curves** were measured with A+B cells revealed, so they do not
   show that an adapter learned to use the prompt.
-- **Version 2 reveals prompt cells there instead,** as inference does (PROTOCOL.md, Changes).
-  Version 1's runs are kept for comparison in `results/ttt/val`.
+- **That did not hold version 1 back, by two measurements on validation:**
+  - **Without the slots:** dropping them at inference (`context_ratio` 0,
+    `scripts/prompt_checks.py`) made version 1's shared adapter worse. The error rose from
+    0.0163 to 0.0185, and the shift fell from 31% to 18% of A's effect. Frozen STACK moved
+    from 0.0260 to 0.0222, its shift away from the prompt shrinking from 14% to 7%.
+  - **Version 2's layout:** it is the inference-consistent one, revealing prompt cells as
+    inference does (PROTOCOL.md, Changes). Its first shared adapter (final block, 3e-4)
+    scored 0.0177 against version 1's 0.0163, with a prompt correlation of +0.58 against
+    +0.67 and a shift of 24% against 31%.
+  - **One confound:** version 2 also renames genes. A validation-only run with the old layout
+    and the renaming (`results/ttt/val_v2_target`) separates the two.
+- **All STACK predictions are smaller than the additive one.** On the additive prediction's
+  top 200 genes, their effects correlate with it at about 0.97. Their size relative to it is
+  49% for frozen STACK (about what B's observed profile alone gives), 66% for version 1's
+  shared adapter and 62% for version 2's.
 
 ## STACK does not reproduce Norman's cells (and what the comparison does about it)
 

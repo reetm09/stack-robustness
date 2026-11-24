@@ -207,6 +207,19 @@ still untouched, and no selection rule changed.
 
 ## Decisions taken by these rules
 
+- **Version 2's first job (2026-11-23).**
+  - **Scores:** the shared adapter (final block, 3e-4) scored 0.0177 under the
+    inference-consistent layout, against 0.0163 in version 1. Its prompt correlation fell
+    from +0.67 to +0.58, and its shift from 31% to 24% of A's effect. Frozen STACK with the
+    renamed genes scored 0.0250, against 0.0260.
+  - **Confound:** the layout and the renaming are confounded here. A validation-only run
+    (`results/ttt/val_v2_target`: target reveal, renaming on) separates them.
+  - **Decision:** prompt reveal stays primary, as registered. Target reveal is validation
+    only, and is not a test condition unless it is added here before any test score exists.
+  - **The proposal:** it specifies STACK's energy-distance alignment objective on (prompt,
+    query, target) windows. Version 2 keeps that objective on the query positions and
+    changes only what the revealed slots show, which the proposal does not fix.
+
 - **Stage 1 (2026-11-23): final block + decoder, learning rate 3e-4.** Median validation
   wMSE of `shared_T1_diff` over the 21 validation doubles, 2,000 steps each:
 
