@@ -279,6 +279,13 @@ pair-orders. Query cells there carry the other single perturbation.
   - **Two confounds:** version 2 also renames genes and freezes f_CLS. A validation-only run
     with the old layout and version 2's other settings (`results/ttt/val_v2_target`, final
     block, 3e-4) isolates the layout. The renaming and f_CLS stay confounded with each other.
+  - **The layout accounts for most of the gap.**
+    - With version 1's layout under version 2's other settings, the shared adapter scored
+      0.01668, against 0.01773 with prompt cells and 0.01629 in version 1.
+    - So the layout alone costs 6.3%, and the renaming and frozen f_CLS together 2.4%.
+    - Each is one training run, against about 1.1% run-to-run noise.
+    - Revealing true A+B cells in training gave the better adapter, even though inference
+      never shows them.
 - **All STACK predictions are smaller than the additive one.** On the additive prediction's
   top 200 genes, their effects correlate with it at about 0.97. Their size relative to it is
   49% for frozen STACK (about what B's observed profile alone gives), 66% for version 1's
@@ -383,9 +390,9 @@ doubles, and they have informed the method choices above. All further tuning and
 diagnosis uses validation doubles.
 
 Open:
-- **The layout run on validation** (`results/ttt/val_v2_target`) is queued. It tests whether
-  version 2's layout accounts for its gap to version 1 ("Two layouts for the slots after the
-  prompt").
+- **Version 1's layout on test.** It did better on validation ("Two layouts for the slots
+  after the prompt"). A test run with it would now be exploratory, and would take about 4 GPU
+  hours.
 - **The remote HPC cluster's package versions** are newer than this lockfile's: pandas 3.1.1,
   anndata 0.13.4, scvi-tools 1.5.2, and torch 2.14.1 with CUDA 12.6. The code has not been
   run under them yet.

@@ -271,3 +271,20 @@ still untouched, and no selection rule changed.
 - **The test run (2026-11-24)** used the settings above, once, on the 26 test doubles. The
   shared adapter was retrained on all 105 training doubles. Results are in the README
   ("Result on the 26 test doubles") and `results/ttt/test_v2/analysis.md`.
+
+- **The layout run (2026-11-24, validation only).** The shared adapter on the final block at
+  3e-4, the same 21 validation doubles, median wMSE of `shared_T1_diff`:
+
+  | run | revealed slots | renamed genes | f_CLS | wMSE |
+  |---|---|---|---|---|
+  | version 1 | true A+B cells | no | trained | 0.01629 |
+  | version 2 with version 1's layout (`results/ttt/val_v2_target`) | true A+B cells | yes | frozen | 0.01668 |
+  | version 2 | prompt cells | yes | frozen | 0.01773 |
+
+  - **The layout accounts for most of version 2's gap.** With the layout alone changed, the
+    error rises 6.3%; from version 1, the total rise is 8.8%.
+  - **The renaming and frozen f_CLS** add the other 2.4%, and they stay confounded with each
+    other.
+  - **Noise:** each is one training run, against run-to-run noise of about 1.1%.
+  - **Status:** version 2 stays the registered and tested version. A test run with version 1's
+    layout would now be exploratory, because the test scores exist.
