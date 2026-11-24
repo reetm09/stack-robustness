@@ -88,11 +88,16 @@ def _validation_loss(model, counts, rows, config, a, device) -> dict:
             for w in range(config.val_windows):
                 seeds = np.random.SeedSequence([config.val_seed, i, w])
                 rng = np.random.default_rng(seeds)
-                observed, truth = task_window(counts, prompt, query, target, a.n_cells, a.n_kept, rng)
+                # Same window layout as training (stack_ttt.adapt._window_loss), including what the
+                # revealed positions show (`a.reveal`: target cells, or more prompt cells).
+                observed, truth, revealed = task_window(counts, prompt, query, target, a.n_cells, a.n_kept, rng,
+                                                        reveal=a.reveal)
                 observed = torch.from_numpy(observed)[None].to(device)
                 truth = torch.from_numpy(truth)[None].to(device)
+                revealed = None if revealed is None else torch.from_numpy(revealed)[None].to(device)
                 torch.manual_seed(int(seeds.generate_state(1)[0]))
-                out = ttt_loss(model, observed, truth, a.n_kept, teacher_embeddings(model, truth), a.weights)
+                out = ttt_loss(model, observed, truth, a.n_kept, teacher_embeddings(model, truth), a.weights,
+                               revealed=revealed)
                 values.append({k: float(out[k]) for k in COMPONENTS})
             per_gene[gene] = {k: float(np.mean([v[k] for v in values])) for k in COMPONENTS}
     mean = {k: float(np.mean([g[k] for g in per_gene.values()])) for k in COMPONENTS}

@@ -88,6 +88,19 @@ def test_zero_shot_is_the_released_checkpoint_and_matches_the_before_loss(run, t
     assert_same_loss(validation_loss(zero_shot, data.counts, rows, CONFIG), run.val_before)
 
 
+def test_validation_follows_the_reveal_setting(tiny_model, tiny_data):
+    data, split = tiny_data
+    rows = validation_rows(data, split)
+    shows_prompt = FinetuneConfig(rank=2, alpha=4.0, val_windows=2,
+                                  adapt=AdaptConfig(steps=4, lr=1e-2, n_cells=16, n_kept=4, seed=0, reveal="prompt"))
+
+    target = validation_loss(tiny_model, data.counts, rows, CONFIG)
+    prompt = validation_loss(tiny_model, data.counts, rows, shows_prompt)
+
+    assert math.isfinite(prompt["loss"]) and prompt["loss"] != target["loss"]
+    assert prompt == validation_loss(tiny_model, data.counts, rows, shows_prompt)
+
+
 def test_validation_is_repeatable_and_leaves_the_random_state_alone(tiny_model, tiny_data):
     data, split = tiny_data
     rows = validation_rows(data, split)

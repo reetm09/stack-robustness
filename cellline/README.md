@@ -13,9 +13,10 @@ code. It reuses `stack_ttt` (Study 4) and `stack_robustness` (shared scoring) un
   (`..` and `../ttt`), so `uv sync` here works only once they are on the same branch.
 - **Tested** with the unit and smoke tests in `tests/`, on synthetic cells and a tiny STACK,
   on CPU. **Not yet run** on real data, on the real checkpoint, or on a GPU.
-- **Known break:** Andrew's commit `c0ffb27` changed `stack_ttt.windows.task_window` to return
-  three values. `finetune.py` still unpacks two, so fine-tuning fails against his branch from that
-  commit on. The split builder below is unaffected.
+- **Needs Andrew's branch from `c0ffb27` on**, where `task_window` returns three values.
+  Validation windows follow `AdaptConfig.reveal`, like training. The library default is
+  `"target"` (reveal true target cells); Andrew's Study 4 scripts now use `"prompt"`, which
+  matches STACK's inference. Which one Study 1 uses is a team decision.
 
 ## Pending team confirmation
 
