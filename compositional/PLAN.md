@@ -148,7 +148,7 @@ scores are kept as well.
 - $r_{AB} = \delta_{AB} - (\delta_A + \delta_B)$; $\hat r_{AB} = \hat\delta_{AB} - (\delta_A+\delta_B)$.
 - $\mathrm{MSE}(\hat r, r) = \mathrm{MSE}(\hat\delta, \delta)$ exactly, so we report **residual
   Pearson**, $\mathrm{corr}(\hat r, r)$, on each pair's top-100 DE genes.
-- The non-additive flag is noise-aware and computed on the duplicate half; see SPLITS.md.
+- Additive / buffering-synergy / interaction groups come from the additivity ruler (calibrated wMSE of the plain and stretched sums); see SPLITS.md.
 
 ### Behaviour classification (Q2)
 - Per pair-order, fit by least squares on the top-200 DE genes:
@@ -182,6 +182,8 @@ scores are kept as well.
 | 2.5 | `../data/` folder; download Norman + vocab; first `explore.ipynb` | data | done |
 | 2.6 | Split design (`SPLITS.md`), goals and questions (this file), `explore.ipynb` by question | data, CPU | done, awaiting review |
 | 2.6b | Second scoring mode, truth from all cells: `contexts.py`, `build_contexts.py`, both modes in `make_table.py`, tests; checked on S-shared | data, CPU | done |
+| 2.6d | Additivity ruler (`additivity.py` + tests; notebook Part B / Q2 / Q6 on scoring genes) | data, CPU | done |
+| 2.6e | Cutoff agreed: top 25% of the plain-sum score = non-additive; same cut splits buffering/synergy vs interaction → 98 / 23 / 10 (`splits/compositional/additivity_groups.csv`); groups wired into `make_table.py` | data, CPU | done |
 | 2.7 | Generate split files: `splits/compositional/` (S-all folds, S-gene seeds, non-additive flags) + tests | data, CPU | |
 | 3 | `combine.py` (additive, weighted, symmetric, residual, ridge, kNN, PCA-linear) + tests | no | |
 | 4 | `behavior.py` + tests | no | |

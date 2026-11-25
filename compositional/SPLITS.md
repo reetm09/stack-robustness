@@ -83,23 +83,45 @@ Results are reported per category, with the median over seeds and a paired boots
 
 ## Additive vs non-additive pairs (Q6, used in every split)
 
-**In short:** a pair is "non-additive" when its measured effect differs from the sum of its two
-single effects by much more than measurement noise could explain.
+**In short:** before any model is tested, we check each real pair by putting the simple guess
+"A's effect + B's effect" on a ruler:
+- **0** = as good as repeating the experiment (the second half of the pair's cells);
+- **1** = as bad as guessing "nothing changes".
 
-**Definition** (fixed before any model result; it depends on the data only):
-1. Use the pair's top-100 DE genes (A+B against control), within the `hvg2000` panel (scanpy top
-   2,000 HVGs, chosen from training and control cells only).
-2. Compute the residual share $s = \lVert r_{AB}\rVert^2 / \lVert \delta_{AB} \rVert^2$, where
-   $r_{AB} = \delta_{AB} - (\delta_A + \delta_B)$.
-3. Compute a noise floor: resample cells with replacement within A, B, A+B and control (200 draws),
-   and recompute $\lVert r_{AB}\rVert^2$ each time. Separately, compute the same statistic for an
-   "additive null": centre the A+B cells so their mean equals $\delta_A+\delta_B$, resample, and
-   take the null mean and sd.
-4. **Non-additive** if $s \ge 0.2$ and $z = (\lVert r\rVert^2 - \text{null mean}) / \text{null sd} \ge 3$.
-5. Computed on the **duplicate (second) half** of the A+B cells, so the truth half used for scoring
-   never chooses the pairs.
+We do the same for a stretched/shrunk sum (c₁·A + c₂·B, with weights per pair):
+- **additive**: the plain sum lands near 0;
+- **buffering/synergy**: the plain sum is far, but the stretched sum lands near 0;
+- **interaction**: both are far.
 
-Study 4's list (9 test pairs, ranked by additive wMSE) is also reported, for comparison only.
+**Agreed rule (decided before any model was run):**
+- The 25% of pairs whose plain sum scores worst are **non-additive** (cut = 0.117, the 75th
+  percentile over all 131 doubles).
+- Of those, pairs whose stretched sum *still* scores above the same cut are **interaction**; the rest
+  are **buffering/synergy**.
+- **Result:** 98 additive, 23 buffering/synergy, 10 interaction.
+  - The 10 interaction pairs: CEBPE+PTPN12, DUSP9+MAPK1, FEV+CBFA2T3, FOSB+PTPN12, FOSB+UBASH3B,
+    MAP2K6+SPI1, MAPK1+PRTG, PTPN12+SNAI1, SET+CEBPE, ZBTB10+DLX2.
+  - The shared 26 test pairs: 20 additive, 5 buffering/synergy, 1 interaction (MAP2K6+SPI1). That is
+    too few for an interaction table on S-shared, which is another reason Q1–Q3 use S-all.
+- **Saved as:** `splits/compositional/additivity_groups.csv`, written by
+  `scripts/make_additivity_groups.py`. The same labels are used in every split.
+- **Why one cut:** taking the top 25% of the stretched score separately put 16 pairs in a
+  meaningless group ("plain sum fine, stretched sum off"). Most stretched scores are tiny, and the
+  stretched fit is least squares while the grading uses wMSE.
+
+**Technical** (definitions from the reference methods: metric calibration and the specific
+epistasis model; `stack_compositional.additivity`):
+- score = (wMSE(guess) − wMSE(duplicate)) / (wMSE(control) − wMSE(duplicate)), clipped at 0.
+  Pairs where the duplicate is not better than control are dropped: 0 of 131 on `hvg2000`, and
+  KIF18B+KIF2C on `stack_genes`.
+- wMSE, truth and duplicate are exactly the shared scoring's (halves mode; DE t-test vs rest on the
+  first half). On the 26 shared test pairs, the plain-sum score equals the one computed from
+  `results/compositional/s_shared/scores.csv`.
+- The stretched sum is a joint OLS over all 131 doubles: per-pair c₁, c₂ and a shared gene offset ε.
+  It is fit by unweighted least squares, so under wMSE it is not guaranteed to beat the plain sum
+  (e.g. PTPN12+OSR2).
+- Panels: `hvg2000` (main) and `stack_genes`.
+- Study 4's 9-pair list (largest additive wMSE) is reported alongside for comparison.
 
 ## Scoring modes (apply to every split)
 

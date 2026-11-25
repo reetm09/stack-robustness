@@ -28,8 +28,11 @@ cells. We grade every model twice:
 
 If both ways rank the models the same, the conclusion does not depend on the halving.
 
-The **non-additive** tables matter most for our hypothesis: these are the pairs where simply
-adding the two single effects works worst.
+**Pair groups.** Before any model was run, each pair was checked: does "A's effect + B's effect"
+match the real double? The 25% of pairs where it fits worst are **non-additive**. Those split into
+**buffering/synergy** (the effects add, but weaker or stronger than the plain sum) and
+**interaction** (even a stretched or shrunk sum fails). The non-additive and interaction tables
+matter most for our hypothesis.
 
 ## Technical details
 
@@ -42,7 +45,8 @@ adding the two single effects works worst.
   All cells: truth and DE from every cell of the pair; no duplicates. The model inputs (singles,
   controls) are the same in both.
 - Model names in the scores file: Additive baseline = `additive`, Weighted prediction = `weighted`, Ridge regression = `ridge`, STACK frozen = `stack_frozen`, STACK fine-tuned = `stack_finetuned`, STACK, both orders = `stack_both`, Technical duplicate (ref.) = `technical_duplicate`, Interpolated duplicate (ref.) = `interpolated_duplicate`.
-- Non-additive pairs (current list, Study 4's; to be replaced by the definition in SPLITS.md): DUSP9+SNAI1, DUSP9+PRTG, JUN+CEBPA, AHR+FEV, KLF1+COL2A1, CBL+PTPN12, BPGM+SAMD1, MAP2K6+SPI1, AHR+KLF1.
+- Pair groups: `splits/compositional/additivity_groups.csv` (rule in SPLITS.md: calibrated wMSE of the plain and stretched sums,
+  hvg2000 panel, top 25% = non-additive, cut 0.117). Over all 131 doubles: {'additive': 98, 'buffering/synergy': 23, 'interaction': 10}.
 
 # Graded against half of the cells (main)
 
@@ -59,31 +63,57 @@ adding the two single effects works worst.
 | Technical duplicate (ref.) | 0.838 | 0.00075 | 0.0024 | -- |
 | Interpolated duplicate (ref.) | 0.829 | 0.00091 | 0.0052 | -- |
 
-## Non-additive pairs (9), halves
+## Additive pairs (20), halves
 
 | Model | Pearson | MSE | wMSE | Residual Pearson |
 |---|---|---|---|---|
-| Additive baseline | **0.869** | **0.00110** | **0.0114** | -- |
+| Additive baseline | **0.837** | **0.00110** | **0.0057** | -- |
 | Weighted prediction | -- | -- | -- | -- |
 | Ridge regression | -- | -- | -- | -- |
 | STACK frozen | -- | -- | -- | -- |
 | STACK fine-tuned | -- | -- | -- | -- |
 | STACK, both orders | -- | -- | -- | -- |
-| Technical duplicate (ref.) | 0.897 | 0.00076 | 0.0024 | -- |
-| Interpolated duplicate (ref.) | 0.856 | 0.00081 | 0.0041 | -- |
+| Technical duplicate (ref.) | 0.838 | 0.00075 | 0.0026 | -- |
+| Interpolated duplicate (ref.) | 0.828 | 0.00096 | 0.0056 | -- |
 
-## Additive pairs (17), halves
+## Non-additive pairs (6), halves
 
 | Model | Pearson | MSE | wMSE | Residual Pearson |
 |---|---|---|---|---|
-| Additive baseline | **0.826** | **0.00110** | **0.0051** | -- |
+| Additive baseline | **0.768** | **0.00141** | **0.0075** | -- |
 | Weighted prediction | -- | -- | -- | -- |
 | Ridge regression | -- | -- | -- | -- |
 | STACK frozen | -- | -- | -- | -- |
 | STACK fine-tuned | -- | -- | -- | -- |
 | STACK, both orders | -- | -- | -- | -- |
-| Technical duplicate (ref.) | 0.830 | 0.00074 | 0.0024 | -- |
-| Interpolated duplicate (ref.) | 0.823 | 0.00098 | 0.0056 | -- |
+| Technical duplicate (ref.) | 0.854 | 0.00075 | 0.0022 | -- |
+| Interpolated duplicate (ref.) | 0.860 | 0.00077 | 0.0036 | -- |
+
+## Buffering/synergy pairs (5), halves
+
+| Model | Pearson | MSE | wMSE | Residual Pearson |
+|---|---|---|---|---|
+| Additive baseline | **0.799** | **0.00106** | **0.0070** | -- |
+| Weighted prediction | -- | -- | -- | -- |
+| Ridge regression | -- | -- | -- | -- |
+| STACK frozen | -- | -- | -- | -- |
+| STACK fine-tuned | -- | -- | -- | -- |
+| STACK, both orders | -- | -- | -- | -- |
+| Technical duplicate (ref.) | 0.908 | 0.00080 | 0.0024 | -- |
+| Interpolated duplicate (ref.) | 0.893 | 0.00081 | 0.0036 | -- |
+
+## Interaction pairs (1), halves
+
+| Model | Pearson | MSE | wMSE | Residual Pearson |
+|---|---|---|---|---|
+| Additive baseline | **0.738** | **0.00194** | **0.0080** | -- |
+| Weighted prediction | -- | -- | -- | -- |
+| Ridge regression | -- | -- | -- | -- |
+| STACK frozen | -- | -- | -- | -- |
+| STACK fine-tuned | -- | -- | -- | -- |
+| STACK, both orders | -- | -- | -- | -- |
+| Technical duplicate (ref.) | 0.741 | 0.00063 | 0.0016 | -- |
+| Interpolated duplicate (ref.) | 0.683 | 0.00072 | 0.0037 | -- |
 
 # Graded against all cells (robustness check)
 
@@ -100,11 +130,11 @@ adding the two single effects works worst.
 | Technical duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
 | Interpolated duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
 
-## Non-additive pairs (9), all cells
+## Additive pairs (20), all cells
 
 | Model | Pearson | MSE | wMSE | Residual Pearson | wMSE Δ (all − halves) |
 |---|---|---|---|---|---|
-| Additive baseline | **0.893** | **0.00090** | **0.0096** | -- | -0.0018 |
+| Additive baseline | **0.881** | **0.00076** | **0.0054** | -- | -0.0003 |
 | Weighted prediction | -- | -- | -- | -- | -- |
 | Ridge regression | -- | -- | -- | -- | -- |
 | STACK frozen | -- | -- | -- | -- | -- |
@@ -113,11 +143,37 @@ adding the two single effects works worst.
 | Technical duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
 | Interpolated duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
 
-## Additive pairs (17), all cells
+## Non-additive pairs (6), all cells
 
 | Model | Pearson | MSE | wMSE | Residual Pearson | wMSE Δ (all − halves) |
 |---|---|---|---|---|---|
-| Additive baseline | **0.870** | **0.00073** | **0.0048** | -- | -0.0003 |
+| Additive baseline | **0.815** | **0.00088** | **0.0083** | -- | +0.0008 |
+| Weighted prediction | -- | -- | -- | -- | -- |
+| Ridge regression | -- | -- | -- | -- | -- |
+| STACK frozen | -- | -- | -- | -- | -- |
+| STACK fine-tuned | -- | -- | -- | -- | -- |
+| STACK, both orders | -- | -- | -- | -- | -- |
+| Technical duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
+| Interpolated duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
+
+## Buffering/synergy pairs (5), all cells
+
+| Model | Pearson | MSE | wMSE | Residual Pearson | wMSE Δ (all − halves) |
+|---|---|---|---|---|---|
+| Additive baseline | **0.823** | **0.00080** | **0.0075** | -- | +0.0005 |
+| Weighted prediction | -- | -- | -- | -- | -- |
+| Ridge regression | -- | -- | -- | -- | -- |
+| STACK frozen | -- | -- | -- | -- | -- |
+| STACK fine-tuned | -- | -- | -- | -- | -- |
+| STACK, both orders | -- | -- | -- | -- | -- |
+| Technical duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
+| Interpolated duplicate (ref.) | n/a | n/a | n/a | n/a | -- |
+
+## Interaction pairs (1), all cells
+
+| Model | Pearson | MSE | wMSE | Residual Pearson | wMSE Δ (all − halves) |
+|---|---|---|---|---|---|
+| Additive baseline | **0.808** | **0.00169** | **0.0091** | -- | +0.0011 |
 | Weighted prediction | -- | -- | -- | -- | -- |
 | Ridge regression | -- | -- | -- | -- | -- |
 | STACK frozen | -- | -- | -- | -- | -- |

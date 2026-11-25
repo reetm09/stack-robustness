@@ -75,7 +75,7 @@ from stack_robustness.data import log_normalize
 from stack_robustness.de import rank_genes
 from stack_robustness.evaluation import EvalContext
 from stack_robustness.genes import load_stack_genes
-from stack_compositional.report import NON_ADDITIVE as STUDY4_NON_ADDITIVE
+from stack_compositional.report import STUDY4_NON_ADDITIVE
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "splits").is_dir())  # stack-robustness/
 RAW = ROOT / "data/raw/norman/NormanWeissman2019_filtered.h5ad"
@@ -145,7 +145,7 @@ ax.hist(counts[doubles], bins=40, alpha=0.6, label=f"doubles ({len(doubles)})")
 ax.set(xlabel="cells per condition", ylabel="conditions", title="Cells per perturbation"); ax.legend()
 plt.show()
 print("smallest doubles:", counts[doubles].nsmallest(5).to_dict())"""),
-md("""## A2. Which perturbations have the strongest effect?
+md(r"""## A2. Which perturbations have the strongest effect?
 **In short:** some perturbations barely change the cell, others change hundreds of genes.
 Strong ones are easier to predict well and dominate averaged scores. We measure strength the way
 the field does:
@@ -328,63 +328,115 @@ md("""# Part B — how additive are the real pairs?
 effects. If they match, the pair is *additive*, and the simple "add them" baseline will be hard to
 beat. Points above the diagonal are stronger than the sum (synergy), below are weaker (buffering).
 
-**Technical:**
-- **Magnitude:** ‖δ_AB‖ vs ‖δ_A + δ_B‖ on each pair's top-200 genes.
-- **Norman et al.'s view:** least squares δ_AB ≈ c_A δ_A + c_B δ_B on the top-200 genes.
-  - (1, 1) = additive.
-  - (1, 0) or (0, 1) = one gene dominates. That is what "replacement" or "preservation" look like
-    in a prediction.
-  - Large residual = interaction."""),
-code("""def pair_parts(pair, eff=effects):
-    a, b = pair.split("+")
-    return effects.loc[a], effects.loc[b], eff.loc[pair]
+**Technical** (same genes and fits as the scoring and the reference methods; nothing new):
+- **Genes:** the HVG panel; and, per pair, its **top-100 DE genes**: t-test with overestimated
+  variance of the pair's first half vs all other perturbed first-half cells, top by adjusted p with
+  ties broken by |t|. That is exactly the gene set of the scoring's `_top` metrics
+  (`stack_robustness.scoring._top_mask`).
+- **Truth:** first-half mean of the double. Singles use all their cells.
+- **Weights c₁, c₂:** the reference's *specific epistasis* fit, μ_AB = μ₀ + c₁δ_A + c₂δ_B + ε, with
+  per-pair c's and one shared gene offset ε, as one joint least-squares fit over all 131 doubles on
+  the panel (`stack_compositional.additivity.specific_epistasis_fit`). Same idea as Norman et al.'s
+  c_A/c_B. (1, 1) = additive; (1, 0) or (0, 1) = one gene dominates; both below 1 = buffering;
+  above 1 = synergy.
+- **Ruler score** (Q6): where the plain sum A + B lands between "as good as a redo" (0) and "as bad as
+  nothing" (1), on wMSE."""),
+code("""from stack_compositional.additivity import additivity_groups, calibrated, specific_epistasis_fit
+from stack_robustness.metrics import deg_weights, wmse
+from stack_robustness.scoring import _top_mask
 
-rows = {}
-for d in doubles:
-    dA, dB, dAB = pair_parts(d)
-    top = dAB.abs().nlargest(200).index
-    M = np.column_stack([dA[top], dB[top]])
-    (cA, cB), *_ = np.linalg.lstsq(M, dAB[top].to_numpy(), rcond=None)
-    fit = M @ [cA, cB]
-    add = (dA + dB)[top]
-    rows[d] = {
-        "|AB|": np.linalg.norm(dAB[top]), "|A+B|": np.linalg.norm(add),
-        "c_A": cA, "c_B": cB,
-        "pearson(AB, A+B)": np.corrcoef(dAB, dA + dB)[0, 1],
-        "residual share": ((dAB[top] - add) ** 2).sum() / (dAB[top] ** 2).sum(),
-        "fit R2": 1 - ((dAB[top] - fit) ** 2).sum() / ((dAB[top] - dAB[top].mean()) ** 2).sum(),
-        "cells": counts[d],
-    }
-additivity = pd.DataFrame(rows).T
+first = (halves == "first").to_numpy()
+second = (halves == "second").to_numpy()
+is_ctrl = (obs["condition"] == CONTROL).to_numpy()
+ctrl_all = profiles_all.loc[CONTROL]
+single_eff_all = profiles_all.loc[singles] - ctrl_all
+truth_all = pseudobulk(first).loc[doubles]
+redo_all = pseudobulk(second).loc[doubles]
 
+# DE exactly as in the shared scoring: t-test (overestimated variance) of each condition's first half
+# vs all other perturbed first-half cells. Gives the wMSE weights and the top-100 genes. ~1-2 minutes.
+sel = first & ~is_ctrl
+de_rest_first = rank_genes(ad.AnnData(X=X[sel], obs=obs.loc[sel, ["condition"]], var=pd.DataFrame(index=genes)),
+                           "condition", reference="rest")
+
+def top_de(pair, panel_genes, k=100):
+    de = de_rest_first[pair].reindex(panel_genes)
+    return list(np.asarray(panel_genes)[_top_mask(de["pval_adj"].to_numpy(), de["score"].to_numpy(), k)])
+
+def ruler_table(panel_genes):
+    ctrl = ctrl_all[panel_genes]
+    eff = single_eff_all[panel_genes]
+    truth, redo = truth_all[panel_genes], redo_all[panel_genes]
+    coefs, _, stretched = specific_epistasis_fit(ctrl, eff, truth)
+    rows = {}
+    for d in doubles:
+        a, b = d.split("+")
+        dA, dB, dAB = eff.loc[a], eff.loc[b], truth.loc[d] - ctrl
+        top = top_de(d, panel_genes)
+        w = deg_weights(de_rest_first[d]["score"].reindex(panel_genes).to_numpy())
+        t = truth.loc[d].to_numpy()
+        err = lambda pred: wmse(np.asarray(pred, dtype=float), t, w)
+        e_sum, e_redo, e_none, e_str = err(ctrl + dA + dB), err(redo.loc[d]), err(ctrl), err(stretched.loc[d])
+        rows[d] = {"score: plain sum": calibrated(e_sum, e_redo, e_none),
+                   "score: stretched sum": calibrated(e_str, e_redo, e_none),
+                   "c1 (first gene)": coefs.loc[d, "c1"], "c2 (second gene)": coefs.loc[d, "c2"],
+                   "|AB| top-100 DE": np.linalg.norm(dAB[top]), "|A+B| top-100 DE": np.linalg.norm((dA + dB)[top]),
+                   "pearson(AB, A+B) panel": np.corrcoef(dAB, dA + dB)[0, 1],
+                   "pearson(AB, A+B) top-100 DE": np.corrcoef(dAB[top], (dA + dB)[top])[0, 1],
+                   "wMSE plain sum": e_sum, "wMSE redo": e_redo, "wMSE nothing": e_none,
+                   "cells": counts[d], "Study 4 list": d in STUDY4_NON_ADDITIVE}
+    return pd.DataFrame(rows).T.infer_objects()
+
+ruler = {PANEL: ruler_table(PANEL_GENES)}
+if PANEL != "stack_genes":
+    ruler["stack_genes"] = ruler_table(genes)
+additivity = ruler[PANEL]
+# Agreed rule (SPLITS.md): top 25% of the plain-sum score = non-additive; of those, the ones whose
+# stretched sum is still above the same cut = interaction, the rest = buffering/synergy.
+groups, CUT = additivity_groups(additivity["score: plain sum"], additivity["score: stretched sum"])
+additivity["group"] = groups
+for name, r in ruler.items():
+    print(f"[{name}] pairs on the ruler: {r['score: plain sum'].notna().sum()} of {len(r)} "
+          f"(dropped where the redo is not better than control: {sorted(r.index[r['score: plain sum'].isna()])})")
+print(f"groups [{PANEL}], cut = {CUT:.3f}:", groups.value_counts().to_dict())
+saved = ROOT / "splits/compositional/additivity_groups.csv"
+if saved.exists() and PANEL == "hvg2000":
+    same = pd.read_csv(saved, index_col="pair")["group"].reindex(groups.index).eq(groups).all()
+    print("matches splits/compositional/additivity_groups.csv:", bool(same))"""),
+code("""a = additivity
 fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
 ax = axes[0]
-ax.scatter(additivity["|A+B|"], additivity["|AB|"], s=14, alpha=0.7)
-lim = additivity[["|AB|", "|A+B|"]].to_numpy().max() * 1.05
+ax.scatter(a["|A+B| top-100 DE"], a["|AB| top-100 DE"], s=14, alpha=0.7)
+lim = a[["|AB| top-100 DE", "|A+B| top-100 DE"]].to_numpy().max() * 1.05
 ax.plot([0, lim], [0, lim], "k--", lw=0.8)
-for d in additivity.assign(r=additivity["|AB|"] / additivity["|A+B|"])["r"].pipe(lambda r: r.nlargest(4).index.union(r.nsmallest(4).index)):
-    ax.annotate(d, additivity.loc[d, ["|A+B|", "|AB|"]], fontsize=7)
+ratio = a["|AB| top-100 DE"] / a["|A+B| top-100 DE"]
+for d in ratio.nlargest(4).index.union(ratio.nsmallest(4).index):
+    ax.annotate(d, (a.loc[d, "|A+B| top-100 DE"], a.loc[d, "|AB| top-100 DE"]), fontsize=7)
 ax.set(xlabel="‖δ_A + δ_B‖ (sum of singles)", ylabel="‖δ_AB‖ (measured double)",
-       title="Magnitude: synergy above, buffering below the line")
+       title="Magnitude on each pair's top-100 DE genes: synergy above, buffering below")
 ax = axes[1]
-sc = ax.scatter(additivity["c_A"], additivity["c_B"], c=additivity["fit R2"], cmap="viridis", s=16, vmin=0, vmax=1)
-ax.plot([1], [1], "r+", ms=14, mew=2)
+sc_ = ax.scatter(a["c1 (first gene)"], a["c2 (second gene)"], c=a["score: plain sum"].clip(upper=1.5), cmap="magma_r", s=18)
+ax.plot([1], [1], "g+", ms=14, mew=2)
 ax.axhline(0, c="grey", lw=0.5); ax.axvline(0, c="grey", lw=0.5)
-fig.colorbar(sc, ax=ax, label="R² of the c_A, c_B fit (low = interaction)")
-ax.set(xlabel="c_A (weight on first gene)", ylabel="c_B (weight on second gene)",
-       title="Norman et al.'s view: δ_AB ≈ c_A·δ_A + c_B·δ_B  (+ = additive)")
+fig.colorbar(sc_, ax=ax, label="ruler score of the plain sum (0 = as good as redo)")
+ax.set(xlabel="c₁ (weight on first gene)", ylabel="c₂ (weight on second gene)",
+       title=f"Specific-epistasis weights per pair (+ = additive) [{PANEL}]")
 plt.tight_layout(); plt.show()
-additivity.sort_values("residual share", ascending=False).head(15).round(3)"""),
+a.sort_values("score: plain sum", ascending=False).head(15).round(3)"""),
 code("""PAIR = "MAP2K6+SPI1"   # change to any double
-dA, dB, dAB = pair_parts(PAIR)
-top = dAB.abs().nlargest(200).index
+a_, b_ = PAIR.split("+")
+dA, dB = single_eff_all.loc[a_, PANEL_GENES], single_eff_all.loc[b_, PANEL_GENES]
+dAB = truth_all.loc[PAIR, PANEL_GENES] - ctrl_all[PANEL_GENES]
+top = top_de(PAIR, PANEL_GENES)
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-for ax, (x, label) in zip(axes, [(dA, PAIR.split("+")[0]), (dB, PAIR.split("+")[1]), (dA + dB, "A + B")]):
-    ax.scatter(x[top], dAB[top], s=8, alpha=0.6)
+for ax, (x, label) in zip(axes, [(dA, a_), (dB, b_), (dA + dB, "A + B")]):
+    ax.scatter(x[top], dAB[top], s=10, alpha=0.7)
     lim = max(np.abs(x[top]).max(), np.abs(dAB[top]).max()) * 1.05
     ax.plot([-lim, lim], [-lim, lim], "k--", lw=0.8)
-    ax.set(xlabel=f"effect of {label}", ylabel=f"effect of {PAIR}", title=f"{PAIR} vs {label} (top 200 genes)")
-plt.tight_layout(); plt.show()"""),
+    ax.set(xlabel=f"effect of {label}", ylabel=f"effect of {PAIR}", title=f"{PAIR} vs {label} (its top-100 DE genes)")
+plt.tight_layout(); plt.show()
+print(f"c1 = {additivity.loc[PAIR, 'c1 (first gene)']:.2f}, c2 = {additivity.loc[PAIR, 'c2 (second gene)']:.2f}, "
+      f"ruler score plain sum = {additivity.loc[PAIR, 'score: plain sum']:.2f}")"""),
 
 # ---------------------------------------------------------------- Part C
 md("""# Part C — the research questions
@@ -425,13 +477,15 @@ and on 2,000 HVGs; paired bootstrap CIs over the 131 pairs.
 the bar STACK has to clear."""),
 code("""refs = {}
 for d in doubles:
-    dA, dB, dAB = pair_parts(d)
+    a_, b_ = d.split("+")
+    dA, dB = single_eff_all.loc[a_, PANEL_GENES], single_eff_all.loc[b_, PANEL_GENES]
+    dAB = truth_all.loc[d, PANEL_GENES] - ctrl_all[PANEL_GENES]
     refs[d] = {"query_only (δ_B)": np.corrcoef(dAB, dB)[0, 1], "prompt_only (δ_A)": np.corrcoef(dAB, dA)[0, 1],
                "additive": np.corrcoef(dAB, dA + dB)[0, 1]}
 refs = pd.DataFrame(refs).T
 fig, ax = plt.subplots(figsize=(7, 3.5))
 ax.boxplot([refs[c] for c in refs], tick_labels=refs.columns)
-ax.set(ylabel="Pearson with true δ_AB (all cells)", title="Q1: what the simple references already achieve")
+ax.set(ylabel=f"Pearson with true δ_AB (first half, {PANEL})", title="Q1: what the simple references already achieve")
 plt.show()
 refs.describe().loc[["mean", "25%", "50%", "75%"]].round(3)"""),
 
@@ -450,8 +504,8 @@ We measure which of these happens.
 **Models tested:** `stack_frozen` per order (later also `stack_finetuned`). References are the
 measured truth's own (c_A, c_B) below.
 
-**Metrics:** per pair-order, the least-squares fit δ̂_AB ≈ β_P·δ_prompt + β_Q·δ_query on the top-200
-genes:
+**Metrics:** per pair-order, the same specific-epistasis weights as Part B, fitted to the prediction:
+δ̂_AB ≈ β_P·δ_prompt + β_Q·δ_query (+ shared ε), on the HVG panel:
 - (1, 0) = replacement;
 - (0, 1) = preservation;
 - (1, 1) = additive;
@@ -459,21 +513,15 @@ genes:
 
 **Data view:** where the *truth* sits on this map. A good model's (β_P, β_Q) should land in the
 same place as the truth's (c_A, c_B), not in a corner."""),
-code("""def behaviour(cA, cB, tol=0.35):
-    if abs(cA - 1) < tol and abs(cB - 1) < tol: return "additive-like"
-    if abs(cA - 1) < tol and abs(cB) < tol: return "first gene dominates"
-    if abs(cB - 1) < tol and abs(cA) < tol: return "second gene dominates"
-    return "other / interaction"
-
-additivity["truth behaviour"] = [behaviour(a, b) for a, b in additivity[["c_A", "c_B"]].to_numpy()]
-display(additivity["truth behaviour"].value_counts().to_frame("pairs"))
-fig, ax = plt.subplots(figsize=(6, 5.5))
-for name, g in additivity.groupby("truth behaviour"):
-    ax.scatter(g["c_A"], g["c_B"], s=16, label=name)
+code("""a = additivity
+fig, ax = plt.subplots(figsize=(6.5, 5.5))
+for g, color in [("additive", "C0"), ("buffering/synergy", "C1"), ("interaction", "C3")]:
+    sub = a[a["group"] == g]
+    ax.scatter(sub["c1 (first gene)"], sub["c2 (second gene)"], s=18, c=color, label=f"{g} ({len(sub)})")
 for (x, y, t) in [(1, 0, "replace B by A"), (0, 1, "preserve B"), (1, 1, "additive")]:
-    ax.annotate(t, (x, y), color="red", fontsize=8, ha="center")
-ax.set(xlabel="c_A", ylabel="c_B", title="Q2: truth's position on the behaviour map"); ax.legend(fontsize=7)
-plt.show()"""),
+    ax.plot([x], [y], "g+", ms=12, mew=2); ax.annotate(" " + t, (x, y), color="green", fontsize=8)
+ax.set(xlabel="c₁ (first gene)", ylabel="c₂ (second gene)", title="Q2: where the truth sits on the behaviour map")
+ax.legend(fontsize=8); plt.show()"""),
 
 md("""## Q3 — Does the order matter?
 
@@ -580,68 +628,101 @@ for seed in range(5):
                          "S-order: one order only": n}
 pd.DataFrame(train_sizes).T"""),
 
-md("""## Q6 — Additive vs non-additive pairs: does anything capture the interaction?
+md("""## Q6 — Which pairs are additive, and does any model capture the rest?
 
-**In short:** most Norman pairs are close to "A plus B", so overall scores mostly measure the
-additive part. We single out the pairs whose combined effect clearly differs from the sum, by
-more than noise could explain, and ask whether any model predicts that difference.
+**In short:** we check each real pair *before* testing any model, by asking how well the simple
+guess "A's effect + B's effect" matches the measured double. Each pair gets a **ruler**:
 
-**Split:** applied inside every split (S-all, S-gene, S-shared). The flag uses only the duplicate
-half of each pair's cells, so the half used for scoring never chooses the pairs.
+- **0** = as good as repeating the experiment (the "redo": the second half of the pair's cells,
+  graded against the first half);
+- **1** = as bad as guessing "nothing changes" (normal control cells).
 
-**Models tested:** all of them. By construction `additive` predicts no interaction.
+The plain sum lands somewhere on that ruler. We also try a **stretched/shrunk sum**, c₁·A + c₂·B,
+where each pair gets its own two weights:
+- **near 0 on the plain sum** → the pair is **additive**;
+- **far on the plain sum but near 0 on the stretched sum** → the effects add but come out weaker
+  (**buffering**, c's < 1) or stronger (**synergy**, c's > 1);
+- **far on both** → a **real interaction**: something new happens that no mix of A and B explains.
 
-**Metrics:**
-- residual Pearson corr(r̂_AB, r_AB) on the top-100 DE genes, where r = δ_AB − (δ_A + δ_B);
-- wMSE on the non-additive pairs vs the others.
+Later, every model (STACK, additive, weighted, ridge) is reported separately for these groups.
+**Agreed cutoff:** the 25% of pairs furthest from 0 on the plain sum are non-additive. The same
+number splits them into buffering/synergy and interaction.
 
-**Genes:** the top-100 genes are chosen within the HVG panel. The panel is picked from training and
-control cells, so held-out responses never choose the genes.
+**Split:** these scores depend only on the data, so they are computed once for all 131 pairs and
+reused inside every split.
 
-**Definition (from SPLITS.md):**
-- the residual share ‖r‖²/‖δ_AB‖² is ≥ 0.2, and
-- ‖r‖² sits ≥ 3 sd above a bootstrap "additive null" (200 draws; cells resampled within A, B, A+B
-  and control).
+**Metrics later:** wMSE on each group; residual Pearson corr(r̂, r), with r = δ_AB − (δ_A + δ_B).
 
-**Data view:** the flags, computed here, compared with Study 4's 9-pair list."""),
-code("""rows_of = {c: np.flatnonzero((obs["condition"] == c).to_numpy()) for c in [CONTROL, *singles]}
-dup_rows = {d: np.flatnonzero(((obs["condition"] == d) & (halves == "second")).to_numpy()) for d in doubles}
+**Technical:** follows the reference methods ("metric calibration", "specific epistasis model"):
+- **score** = (wMSE(guess) − wMSE(redo)) / (wMSE(control) − wMSE(redo)), clipped at 0. Pairs where
+  the redo is not better than control are dropped, as the paper does.
+- **wMSE** is exactly the shared scoring's: weights = min-max-scaled squared t-scores from the DE
+  test of the pair's **first half** vs all other perturbed first-half cells.
+- **Truth** = the first-half mean; **redo** = the second-half mean; singles use all their cells.
+- **Stretched sum** = control + c₁δ_A + c₂δ_B + ε, one joint least-squares fit over all 131 doubles
+  (per-pair c's, one shared gene offset ε). It uses each pair's own truth, so it is a descriptive
+  **oracle**, not a predictor.
+- Computed on the HVG panel (main) and on all STACK genes."""),
+code("""# Computed in Part B (same truth halves, wMSE weights and fits as the scoring).
+r = ruler[PANEL]
+r[["score: plain sum", "score: stretched sum"]].describe().round(3)"""),
+md("""**Plot 1: where the plain sum lands on the ruler, for all 131 pairs.** A pile near 0 = additive
+pairs. A long tail = pairs the sum gets wrong. Look for a natural gap that could serve as the cutoff."""),
+code("""fig, axes = plt.subplots(1, len(ruler), figsize=(6.5 * len(ruler), 3.8), squeeze=False)
+for ax, (name, r) in zip(axes[0], ruler.items()):
+    s = r["score: plain sum"].dropna()
+    ax.hist(s.clip(upper=2), bins=40)
+    ax.axvline(0, c="green", lw=1); ax.axvline(1, c="red", lw=1)
+    ax.text(0, ax.get_ylim()[1] * 0.92, " redo", color="green", fontsize=8)
+    ax.text(1, ax.get_ylim()[1] * 0.92, " nothing", color="red", fontsize=8)
+    ax.set(xlabel="score of the plain sum (0 = as good as redo, 1 = as bad as 'nothing'; clipped at 2)",
+           ylabel="pairs", title=f"How additive are the pairs? [{name}]")
+plt.tight_layout(); plt.show()
+r = ruler[PANEL]
+print(r["score: plain sum"].describe(percentiles=[0.1, 0.25, 0.5, 0.75, 0.9]).round(3).to_string())"""),
+md("""**The agreed groups (cut = top 25% of the plain-sum score):**
+- **additive:** plain sum below the cut;
+- **buffering/synergy:** plain sum above the cut, stretched sum below it;
+- **interaction:** both above it.
 
-def boot_means(dense, n_boot, rng):
-    n = dense.shape[0]
-    w = rng.multinomial(n, np.full(n, 1.0 / n), size=n_boot) / n
-    return w @ dense
-
-def non_additivity(pair, n_boot=200, top_n=100, seed=0):
-    rng = np.random.default_rng(seed)
-    a, b = pair.split("+")
-    top = dup_effects.loc[pair].abs().nlargest(top_n).index
-    gi = gene_pos[top].to_numpy()
-    dense = {k: X[r][:, gi].toarray() for k, r in [("A", rows_of[a]), ("B", rows_of[b]), ("C", rows_of[CONTROL]), ("AB", dup_rows[pair])]}
-    m = {k: v.mean(axis=0) for k, v in dense.items()}
-    r = m["AB"] - m["A"] - m["B"] + m["C"]
-    share = (r ** 2).sum() / ((m["AB"] - m["C"]) ** 2).sum()
-    null_ab = dense["AB"] - m["AB"] + (m["A"] + m["B"] - m["C"])     # A+B cells moved onto the additive prediction
-    bm = {k: boot_means(v, n_boot, rng) for k, v in [("A", dense["A"]), ("B", dense["B"]), ("C", dense["C"]), ("AB", null_ab)]}
-    null = ((bm["AB"] - bm["A"] - bm["B"] + bm["C"]) ** 2).sum(axis=1)
-    z = ((r ** 2).sum() - null.mean()) / null.std()
-    return {"residual share": share, "z vs additive null": z, "duplicate cells": len(dup_rows[pair])}
-
-gene_pos = pd.Series(np.arange(len(genes)), index=genes)
-flags = pd.DataFrame({d: non_additivity(d) for d in doubles}).T
-flags["non-additive"] = (flags["residual share"] >= 0.2) & (flags["z vs additive null"] >= 3)
-flags["Study 4 list"] = flags.index.isin(STUDY4_NON_ADDITIVE)
-print(int(flags["non-additive"].sum()), "of", len(flags), "doubles flagged non-additive")
-fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.scatter(flags["residual share"], flags["z vs additive null"].clip(upper=60), s=14,
-           c=np.where(flags["non-additive"], "C3", "C0"))
-for d in flags.index[flags["Study 4 list"]]:
-    ax.annotate(d, (flags.loc[d, "residual share"], min(flags.loc[d, "z vs additive null"], 60)), fontsize=6)
-ax.axvline(0.2, c="grey", ls="--", lw=0.8); ax.axhline(3, c="grey", ls="--", lw=0.8)
-ax.set(xlabel="residual share (duplicate half)", ylabel="z vs additive null (clipped at 60)",
-       title="Q6: non-additive pairs (red); Study 4's list labelled")
-plt.show()
-flags.sort_values("residual share", ascending=False).head(25).round(3)"""),
+They are saved by `scripts/make_additivity_groups.py` to `splits/compositional/additivity_groups.csv`
+and used in every split and results table."""),
+code("""display(r["group"].value_counts().to_frame("pairs"))
+r[r["group"] != "additive"].sort_values(["group", "score: plain sum"], ascending=[True, False])[
+    ["group", "score: plain sum", "score: stretched sum", "c1 (first gene)", "c2 (second gene)", "cells", "Study 4 list"]].round(3)"""),
+md("""**Plot 2: plain sum vs stretched sum.** Bottom-left = additive. Right side but low = buffering or
+synergy (a stretched/shrunk sum fixes it). Top-right = a real interaction. Labels show the pairs
+furthest from additive; red rings are Study 4's 9-pair list."""),
+code("""r = ruler[PANEL]
+fig, ax = plt.subplots(figsize=(8, 6.5))
+sc_ = ax.scatter(r["score: plain sum"].clip(upper=2), r["score: stretched sum"].clip(upper=2),
+                 c=np.log10(r["cells"].astype(float)), cmap="viridis", s=22)
+st4 = r[r["Study 4 list"]]
+ax.scatter(st4["score: plain sum"].clip(upper=2), st4["score: stretched sum"].clip(upper=2), s=90,
+           facecolors="none", edgecolors="red", label="Study 4 list")
+for d in r["score: plain sum"].nlargest(12).index:
+    ax.annotate(d, (min(r.loc[d, "score: plain sum"], 2), min(r.loc[d, "score: stretched sum"], 2)), fontsize=7)
+lim = min(2, np.nanmax(r[["score: plain sum", "score: stretched sum"]].to_numpy()) * 1.05)
+ax.plot([0, lim], [0, lim], "k:", lw=0.8)
+ax.axvline(CUT, c="grey", ls="--", lw=0.9); ax.axhline(CUT, c="grey", ls="--", lw=0.9)
+ax.text(CUT, lim * 0.97, f" cut {CUT:.3f} (top 25%)", fontsize=7, color="grey")
+fig.colorbar(sc_, ax=ax, label="log10 cells in the pair")
+ax.set(xlabel="score: plain sum A + B", ylabel="score: stretched sum c₁A + c₂B",
+       title=f"Additive (bottom-left), buffering/synergy (bottom-right), interaction (top-right) [{PANEL}]")
+ax.legend(); plt.show()
+r.sort_values("score: plain sum", ascending=False).head(30).round(3)"""),
+code("""# Check: on the 26 shared test pairs, the plain-sum score must equal the one computed from the
+# scored pipeline (results/compositional/s_shared/scores.csv: additive, technical_duplicate,
+# control_baseline wMSE, halves mode, STACK gene panel).
+scores_path = ROOT / "results/compositional/s_shared/scores.csv"
+if scores_path.exists() and "stack_genes" in ruler:
+    sc_long = pd.read_csv(scores_path).query("truth == 'halves' and panel == 'stack_genes' and metric == 'wmse'")
+    w = sc_long.pivot(index="perturbation", columns="model", values="value")
+    from_pipeline = pd.Series(calibrated(w["additive"], w["technical_duplicate"], w["control_baseline"]), index=w.index)
+    here = ruler["stack_genes"].loc[w.index, "score: plain sum"]
+    print("max |difference| vs scored pipeline:", float((from_pipeline - here).abs().max()))
+else:
+    print("scored pipeline output not found; run scripts/build_contexts.py --split s_shared")"""),
 
 md("""## Reference — the team's split (S-shared)
 
@@ -656,8 +737,8 @@ models on it, so everyone's numbers can be put side by side.
 
 **Metrics:** all shared metrics, read from `EvalContext.score` exactly as in the team's results.
 
-**Data view:** the 26 held-out pairs, how many training pairs share a gene with each, and both
-non-additive flags."""),
+**Data view:** the 26 held-out pairs, how many training pairs share a gene with each, and where
+each sits on the additivity ruler (Q6)."""),
 code("""split = pd.read_csv(ROOT / "splits/norman2019_conditions.csv")
 test = split.loc[split["split"].eq("test"), "condition"].tolist()
 train_doubles = split.query("split == 'train' and kind == 'combination'")["condition"].tolist()
@@ -665,8 +746,9 @@ seen = {g for d in train_doubles for g in d.split("+")}
 shared = pd.DataFrame({
     t: {"cells": counts[t], "neighbours": sum(bool(set(d.split("+")) & set(t.split("+"))) for d in train_doubles),
         "genes seen in training pairs": sum(g in seen for g in t.split("+")),
-        "non-additive (new)": flags.loc[t, "non-additive"], "Study 4 list": t in STUDY4_NON_ADDITIVE,
-        "residual share": round(flags.loc[t, "residual share"], 3)}
+        "score: plain sum": round(ruler[PANEL].loc[t, "score: plain sum"], 3),
+        "score: stretched sum": round(ruler[PANEL].loc[t, "score: stretched sum"], 3),
+        "group": additivity.loc[t, "group"], "Study 4 list": t in STUDY4_NON_ADDITIVE}
     for t in test}).T
 shared"""),
 ]

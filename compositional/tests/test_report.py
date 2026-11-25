@@ -3,8 +3,12 @@ import pandas as pd
 import pytest
 
 from stack_compositional.report import (
-    LATEX_COLUMNS, MARKDOWN_COLUMNS, NON_ADDITIVE, latex_table, markdown_table, subset_pairs, summary,
+    LATEX_COLUMNS, MARKDOWN_COLUMNS, latex_table, markdown_table, subset_pairs, summary,
 )
+
+PAIRS = ["A+B", "C+D", "X+Y", "Z+W"]
+GROUPS = pd.Series({"A+B": "interaction", "C+D": "buffering/synergy", "X+Y": "additive", "Z+W": "additive"})
+NON_ADDITIVE = ["A+B", "C+D"]
 
 
 def long_table(rows):
@@ -13,9 +17,8 @@ def long_table(rows):
 
 @pytest.fixture
 def scores():
-    pairs = [NON_ADDITIVE[0], NON_ADDITIVE[1], "X+Y", "Z+W"]
     rows = []
-    for i, p in enumerate(pairs):
+    for i, p in enumerate(PAIRS):
         rows += [
             ("stack_genes", "additive", p, "pearson_deltactrl", 0.8 + 0.01 * i),
             ("stack_genes", "additive", p, "mse", 0.001),
@@ -28,11 +31,15 @@ def scores():
 
 def test_subsets_partition_the_pairs(scores):
     perts = scores["perturbation"]
-    na, add = subset_pairs(perts, "non-additive"), subset_pairs(perts, "additive")
+    na, add = subset_pairs(perts, "non-additive", GROUPS), subset_pairs(perts, "additive", GROUPS)
     assert set(na) | set(add) == set(subset_pairs(perts, "all"))
     assert not set(na) & set(add)
+    assert subset_pairs(perts, "interaction", GROUPS) == ["A+B"]
+    assert subset_pairs(perts, "buffering/synergy", GROUPS) == ["C+D"]
     with pytest.raises(ValueError):
-        subset_pairs(perts, "nope")
+        subset_pairs(perts, "nope", GROUPS)
+    with pytest.raises(ValueError):
+        subset_pairs(perts, "additive")  # groups required
 
 
 def test_summary_takes_medians_on_one_panel(scores):
@@ -44,7 +51,7 @@ def test_summary_takes_medians_on_one_panel(scores):
 
 
 def test_summary_restricts_to_subset(scores):
-    table = summary(scores, "stack_genes", LATEX_COLUMNS, "non-additive")
+    table = summary(scores, "stack_genes", LATEX_COLUMNS, "non-additive", groups=GROUPS)
     assert table.loc["STACK frozen", "MSE"] == pytest.approx(0.002)
 
 

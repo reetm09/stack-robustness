@@ -15,13 +15,19 @@ optionally restricted to a subset of pairs.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-# The 9 held-out doubles with the largest additive-baseline wMSE (stack_genes panel, test split).
-# The same fixed list as Study 4 (ttt/scripts/analyze_ttt.py), copied so this study does not import ttt.
-NON_ADDITIVE = [
+# Experiment 2's additivity groups (agreed rule, SPLITS.md): written by
+# scripts/make_additivity_groups.py; one row per double with group additive / buffering/synergy /
+# interaction.
+GROUPS_PATH = Path(__file__).resolve().parents[3] / "splits/compositional/additivity_groups.csv"
+
+# For comparison only: Study 4's 9 "non-additive" test doubles (largest additive-baseline wMSE,
+# stack_genes panel), copied from ttt/scripts/analyze_ttt.py so this study does not import ttt.
+STUDY4_NON_ADDITIVE = [
     "DUSP9+SNAI1", "DUSP9+PRTG", "JUN+CEBPA", "AHR+FEV", "KLF1+COL2A1",
     "CBL+PTPN12", "BPGM+SAMD1", "MAP2K6+SPI1", "AHR+KLF1",
 ]
@@ -59,23 +65,30 @@ LATEX_COLUMNS = [
 ]
 MARKDOWN_COLUMNS = LATEX_COLUMNS[:2] + [Column("wMSE", "wmse", False, "{:.4f}")] + LATEX_COLUMNS[2:]
 
-SUBSETS = {
-    "all": None,
-    "non-additive": NON_ADDITIVE,
-    "additive": "complement",
-}
+SUBSETS = ("all", "non-additive", "additive", "buffering/synergy", "interaction")
 
 
-def subset_pairs(perturbations, subset: str) -> list:
-    """The held-out pairs that belong to `subset` ("all", "non-additive" or "additive")."""
+def load_groups(path=GROUPS_PATH) -> pd.Series:
+    """pair -> additivity group, from splits/compositional/additivity_groups.csv."""
+    return pd.read_csv(path, index_col="pair")["group"]
+
+
+def subset_pairs(perturbations, subset: str, groups: pd.Series | None = None) -> list:
+    """The held-out pairs in `subset`.
+
+    "all", or one of the additivity groups ("additive", "buffering/synergy", "interaction"), or
+    "non-additive" (= buffering/synergy + interaction). Groups other than "all" need `groups`.
+    """
     perts = sorted(set(perturbations))
+    if subset not in SUBSETS:
+        raise ValueError(f"unknown subset {subset!r}")
     if subset == "all":
         return perts
-    if subset == "non-additive":
-        return [p for p in perts if p in NON_ADDITIVE]
-    if subset == "additive":
-        return [p for p in perts if p not in NON_ADDITIVE]
-    raise ValueError(f"unknown subset {subset!r}")
+    if groups is None:
+        raise ValueError("subset by additivity needs `groups` (see load_groups)")
+    g = groups.reindex(perts)
+    keep = g.ne("additive") & g.notna() if subset == "non-additive" else g.eq(subset)
+    return [p for p, k in zip(perts, keep) if k]
 
 
 def with_truth(long: pd.DataFrame) -> pd.DataFrame:
@@ -84,14 +97,14 @@ def with_truth(long: pd.DataFrame) -> pd.DataFrame:
 
 
 def summary(long: pd.DataFrame, panel: str, columns, subset: str = "all", truth: str = "halves",
-            rows=ROWS, pairs=None) -> pd.DataFrame:
+            rows=ROWS, pairs=None, groups: pd.Series | None = None) -> pd.DataFrame:
     """Median value per (table row, column) over the pairs in `subset`; NaN where missing.
 
     `pairs` (optional) fixes the pair list, so tables in both truth modes cover the same pairs.
     """
     long = with_truth(long)
     sel = long[(long["panel"] == panel) & (long["truth"] == truth)]
-    keep = subset_pairs(sel["perturbation"] if pairs is None else pairs, subset)
+    keep = subset_pairs(sel["perturbation"] if pairs is None else pairs, subset, groups)
     sel = sel[sel["perturbation"].isin(keep)]
     medians = sel.groupby(["model", "metric"])["value"].median()
     table = pd.DataFrame(index=[label for label, _ in rows], columns=[c.label for c in columns], dtype=float)

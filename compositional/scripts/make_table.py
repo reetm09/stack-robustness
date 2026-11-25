@@ -28,8 +28,8 @@ from pathlib import Path
 import pandas as pd
 
 from stack_compositional.report import (
-    LATEX_COLUMNS, MARKDOWN_COLUMNS, NON_ADDITIVE, REFERENCE_ROWS, ROWS, latex_table, markdown_table,
-    subset_pairs, summary, with_truth,
+    GROUPS_PATH, LATEX_COLUMNS, MARKDOWN_COLUMNS, REFERENCE_ROWS, ROWS, latex_table, load_groups,
+    markdown_table, subset_pairs, summary, with_truth,
 )
 
 HERE = Path(__file__).resolve().parents[1]  # compositional/
@@ -67,8 +67,11 @@ cells. We grade every model twice:
 
 If both ways rank the models the same, the conclusion does not depend on the halving.
 
-The **non-additive** tables matter most for our hypothesis: these are the pairs where simply
-adding the two single effects works worst.
+**Pair groups.** Before any model was run, each pair was checked: does "A's effect + B's effect"
+match the real double? The 25% of pairs where it fits worst are **non-additive**. Those split into
+**buffering/synergy** (the effects add, but weaker or stronger than the plain sum) and
+**interaction** (even a stretched or shrunk sum fails). The non-additive and interaction tables
+matter most for our hypothesis.
 
 ## Technical details
 
@@ -81,10 +84,12 @@ adding the two single effects works worst.
   All cells: truth and DE from every cell of the pair; no duplicates. The model inputs (singles,
   controls) are the same in both.
 - Model names in the scores file: {models}.
-- Non-additive pairs (current list, Study 4's; to be replaced by the definition in SPLITS.md): {non_additive}.
+- Pair groups: `{groups_path}` (rule in SPLITS.md: calibrated wMSE of the plain and stretched sums,
+  hvg2000 panel, top 25% = non-additive, cut {cut:.3f}). Over all 131 doubles: {group_counts}.
 """
 
-TITLES = {"all": "All held-out pairs", "non-additive": "Non-additive pairs", "additive": "Additive pairs"}
+TITLES = {"all": "All held-out pairs", "additive": "Additive pairs", "non-additive": "Non-additive pairs",
+          "buffering/synergy": "Buffering/synergy pairs", "interaction": "Interaction pairs"}
 
 
 def main() -> None:
@@ -94,6 +99,7 @@ def main() -> None:
     parser.add_argument("--panel", default="stack_genes")
     parser.add_argument("--markdown", type=Path, default=HERE / "EVALUATION.md")
     parser.add_argument("--latex-dir", type=Path, default=HERE / "tables")
+    parser.add_argument("--groups", type=Path, default=GROUPS_PATH)
     args = parser.parse_args()
 
     sources = args.scores or [REPO / "results" / "compositional" / args.split / "scores.csv"]
@@ -103,21 +109,25 @@ def main() -> None:
         print(("read    " if p.exists() else "missing ") + str(p))
 
     pairs = sorted(set(long.loc[long["panel"] == args.panel, "perturbation"]))
+    groups_table = pd.read_csv(args.groups)
+    groups = load_groups(args.groups)
     parts = [INTRO.format(
         sources=", ".join(f"`{p.relative_to(REPO) if p.is_relative_to(REPO) else p}`" for p in sources),
         split=args.split, panel=args.panel, today=date.today().isoformat(),
         models=", ".join(f"{label} = `{model}`" for label, model in MD_ROWS),
-        non_additive=", ".join(NON_ADDITIVE),
+        groups_path=args.groups.relative_to(REPO) if args.groups.is_relative_to(REPO) else args.groups,
+        cut=float(groups_table["cut"].iloc[0]), group_counts=groups.value_counts().to_dict(),
     )]
     for truth, heading in [("halves", "Graded against half of the cells (main)"),
                            ("all", "Graded against all cells (robustness check)")]:
         parts.append(f"# {heading}\n")
         for subset, title in TITLES.items():
-            n = len(subset_pairs(pairs, subset))
-            table = summary(long, args.panel, MARKDOWN_COLUMNS, subset, truth, rows=MD_ROWS, pairs=pairs)
+            n = len(subset_pairs(pairs, subset, groups))
+            table = summary(long, args.panel, MARKDOWN_COLUMNS, subset, truth, rows=MD_ROWS, pairs=pairs, groups=groups)
             extra = None
             if truth == "all":
-                halves = summary(long, args.panel, MARKDOWN_COLUMNS, subset, "halves", rows=MD_ROWS, pairs=pairs)
+                halves = summary(long, args.panel, MARKDOWN_COLUMNS, subset, "halves", rows=MD_ROWS, pairs=pairs,
+                                 groups=groups)
                 extra = table["wMSE"] - halves["wMSE"]
             parts.append(f"## {title} ({n}), {'halves' if truth == 'halves' else 'all cells'}\n\n"
                          + markdown_table(table, extra=extra, extra_label="wMSE Δ (all − halves)",
