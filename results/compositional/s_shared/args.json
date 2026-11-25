@@ -1,0 +1,10 @@
+{
+ "split": "s_shared",
+ "conditions": "/Users/reetmishra/Documents/Github/cs182-finalproject/stack-robustness/splits/norman2019_conditions.csv",
+ "halves": "/Users/reetmishra/Documents/Github/cs182-finalproject/stack-robustness/splits/norman2019_halves.csv.gz",
+ "held": "test",
+ "truth": "['halves', 'all']",
+ "raw": "/Users/reetmishra/Documents/Github/cs182-finalproject/stack-robustness/data/raw/norman/NormanWeissman2019_filtered.h5ad",
+ "vocab": "/Users/reetmishra/Documents/Github/cs182-finalproject/stack-robustness/data/raw/stack_vocab/basecount_1000per_15000max.pkl",
+ "n_hvg": "2000"
+}

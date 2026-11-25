@@ -1,0 +1,22 @@
+\begin{table}[t]
+    \caption{Combinatorial perturbation prediction. Median over held-out double
+    perturbations. Pearson: correlation of predicted and true change from control
+    (higher is better). MSE: mean squared error (lower is better). Residual Pearson:
+    correlation of predicted and true non-additive component $r_{AB}$ on each pair's
+    top 100 DE genes (higher is better; undefined for the additive baseline).
+    Scored against a random half of each pair's cells (the other half is the technical duplicate).}
+    \label{tab:composition_results}
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        Model & Pearson & MSE & Residual Pearson \\
+        \midrule
+        Additive baseline     & \textbf{0.828} & \textbf{0.00110} & -- \\
+        Weighted prediction   & -- & -- & -- \\
+        Ridge regression      & -- & -- & -- \\
+        STACK frozen          & -- & -- & -- \\
+        STACK fine-tuned      & -- & -- & -- \\
+        STACK, both orders    & -- & -- & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
