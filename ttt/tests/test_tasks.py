@@ -141,3 +141,58 @@ def test_random_tasks_match_the_neighbour_tasks_except_for_which_doubles_they_us
     assert tasks[-3:] == [Task("control", "control", "control"), Task("A"), Task("B")]
     assert len(tasks) == len(norman_tasks("A+B", train, null=True))
     assert random_tasks("A+B", train, seed=0, null=True) == tasks  # reproducible
+
+
+# Effect embeddings of singles, chosen so that the cosine ranking against e(A+B) = (1, 1, 0) is
+# E+F (0.997), A+C (0.54), D+B (0.50), C+D (0.07), G+H (-1), with no ties.
+EMBED = {g: np.array(v, dtype=float) for g, v in {
+    "A": [1, 0, 0], "B": [0, 1, 0], "C": [0.2, 0, 1], "D": [0, 0, 1],
+    "E": [1, 0.1, 0], "F": [0, 1, 0.1], "G": [-1, 0, 0], "H": [0, -1, 0]}.items()}
+KNN_TRAIN = ["A+C", "D+B", "E+F", "G+H", "C+D"]
+
+
+def test_knn_neighbours_rank_training_doubles_by_the_cosine_of_summed_single_embeddings():
+    from stack_ttt.tasks import knn_neighbours
+
+    assert knn_neighbours("A+B", KNN_TRAIN, EMBED, k=5) == ["E+F", "A+C", "D+B", "C+D", "G+H"]
+
+
+def test_knn_tasks_take_as_many_doubles_as_share_a_gene_and_keep_the_other_tasks():
+    from stack_ttt.tasks import knn_tasks
+
+    tasks = knn_tasks("A+B", KNN_TRAIN, EMBED, null=True)
+    doubles = sorted({t.target for t in tasks if t.query is not None and t.target != "control"})
+
+    assert len(neighbours("A+B", KNN_TRAIN)) == 2
+    assert doubles == ["A+C", "E+F"]  # the two nearest, one of them not sharing a gene
+    assert tasks[-3:] == [Task("control", "control", "control"), Task("A"), Task("B")]
+    assert len(tasks) == len(norman_tasks("A+B", KNN_TRAIN, null=True))
+
+
+def test_knn_tasks_take_no_doubles_when_none_shares_a_gene():
+    from stack_ttt.tasks import knn_tasks
+
+    tasks = knn_tasks("A+B", ["E+F", "G+H"], EMBED, null=True)
+
+    assert tasks == [Task("control", "control", "control"), Task("A"), Task("B")]
+
+
+def test_effect_embeddings_use_only_infer_cells_and_subtract_control(tiny_model):
+    from stack_ttt.retrieval import effect_embeddings, mean_embeddings
+
+    rng = np.random.default_rng(0)
+    counts = sparse.csr_matrix(rng.poisson(3.0, size=(60, 40)).astype(np.float32))
+    pools = {("X", "infer"): np.arange(0, 20), ("X", "adapt"): np.arange(20, 40),
+             ("control", "infer"): np.arange(40, 60)}
+    cells = type("Cells", (), {"counts": counts})()
+
+    effect = effect_embeddings(tiny_model, cells, pools, ["X"], device="cpu", window=8)
+    means = mean_embeddings(tiny_model, counts, {"X": np.arange(0, 20), "control": np.arange(40, 60)},
+                            device="cpu", window=8)
+    np.testing.assert_allclose(effect["X"], means["X"] - means["control"], rtol=1e-6)
+
+    changed = counts.tolil()
+    changed[20:40] = changed[20:40] * 5  # the adapt half must not matter
+    again = effect_embeddings(tiny_model, type("Cells", (), {"counts": changed.tocsr()})(), pools, ["X"],
+                              device="cpu", window=8)
+    np.testing.assert_allclose(again["X"], effect["X"], rtol=1e-6)

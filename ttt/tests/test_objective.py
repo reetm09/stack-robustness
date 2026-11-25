@@ -96,3 +96,39 @@ def test_revealed_cells_are_both_input_and_reconstruction_target_of_their_slots(
     for name in COMPONENTS + ["loss"]:
         assert out[name].item() == pytest.approx(same[name].item(), rel=1e-6), name
     assert out["recon_loss"].item() != pytest.approx(plain["recon_loss"].item(), rel=1e-6)
+
+
+def test_the_full_loss_is_the_registered_default_and_unknown_kinds_are_refused():
+    from stack_ttt.objective import loss_weights
+
+    assert loss_weights("full") == LossWeights()
+    with pytest.raises(ValueError):
+        loss_weights("energy")
+
+
+def test_energy_distance_only_keeps_just_the_energy_distance(tiny_model, tiny_counts):
+    from stack_ttt.objective import loss_weights
+
+    observed, truth = tiny_counts
+    teacher = teacher_embeddings(tiny_model, truth)
+    torch.manual_seed(3)
+    out = ttt_loss(tiny_model, observed, truth, n_kept=N_KEPT, teacher=teacher, weights=loss_weights("ed"))
+
+    assert out["mmd_loss"].item() > 0 and out["recon_loss"].item() > 0
+    assert out["loss"].item() == pytest.approx(out["mmd_loss"].item(), rel=1e-6)
+
+
+def test_energy_distance_only_gives_a_prompt_only_window_no_gradient(tiny_model, tiny_counts):
+    from stack_ttt.objective import loss_weights
+
+    observed, _ = tiny_counts
+    adapters = inject_lora(tiny_model, stack_targets(tiny_model, "final_block"), rank=2, alpha=4.0)
+    for a in adapters:  # nonzero B, so a gradient would reach A too
+        torch.nn.init.normal_(a.lora_B)
+    torch.manual_seed(0)
+    out = ttt_loss(tiny_model, observed, observed, n_kept=observed.shape[1], teacher=None, weights=loss_weights("ed"))
+    out["loss"].backward()
+
+    assert out["loss"].item() == 0.0
+    grads = [p.grad for a in adapters for p in (a.lora_A, a.lora_B)]
+    assert all(g is not None and g.abs().sum() == 0 for g in grads)

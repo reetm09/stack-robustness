@@ -288,3 +288,25 @@ still untouched, and no selection rule changed.
   - **Noise:** each is one training run, against run-to-run noise of about 1.1%.
   - **Status:** version 2 stays the registered and tested version. A test run with version 1's
     layout would now be exploratory, because the test scores exist.
+
+- **Two exploratory variants (2026-11-24, validation only).** The team's paper draft describes
+  Experiment 4 with two choices this study did not make. Each is run as a one-change variant
+  of the registered TTT arms, after the test run, on the 21 validation doubles:
+  - **Energy distance alone** (`--ttt-loss ed`). The TTT arms keep only STACK's
+    energy-distance terms (gene space and teacher embeddings, scaled as upstream scales them)
+    and drop reconstruction, sliced Wasserstein and the classifier term. The tasks stay the
+    same, so the pair's own prompt-only windows now give no gradient. With f_CLS frozen, the
+    classifier term never reached the adapters anyway. The shared adapter keeps the full loss.
+  - **Nearest pairs in STACK's embedding space** (`--neighbours knn`). H(g*) becomes the k
+    training doubles whose e(a) + e(b) has the highest cosine similarity to e(A) + e(B).
+    e(g) is frozen STACK's mean embedding of single g's infer-half cells minus that of the
+    control infer-half cells (`src/stack_ttt/retrieval.py`, the teacher's embedding path). k
+    is the number of gene-sharing neighbours, so the task counts match.
+  - **Settings** are copied from the registered validation runs: `ttt_lr3e-4_steps250` for
+    `shared_ttt` and `ttt_lr1e-4_steps250` for `ttt`. The random-pair arms run at the same
+    settings for comparison. Outputs are in `results/ttt/val_v2_variants/`.
+  - **How they are read**, fixed before any result: median wMSE (`stack_genes`, diff, T = 1),
+    the paired per-pair median difference with a bootstrap 95% interval (10,000 resamples),
+    and wins out of 21 with differences within 1% counted as ties, against about 1.1%
+    run-to-run noise (`scripts/compare_variants.py`). Neither replaces a registered arm, and
+    a test run of either would be exploratory.

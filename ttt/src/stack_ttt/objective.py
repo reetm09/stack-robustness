@@ -23,6 +23,17 @@ class LossWeights:
     cls: float = 1.0  # the unmasking classifier f_CLS
 
 
+def loss_weights(kind: str) -> LossWeights:
+    """The loss of the TTT arms. "full" is STACK's fine-tuning loss, the registered one. "ed" keeps
+    STACK's energy distance alone (gene space and teacher-embedding space, scaled as upstream
+    scales it), the objective the team's paper draft writes down; an exploratory variant."""
+    if kind == "full":
+        return LossWeights()
+    if kind == "ed":
+        return LossWeights(ed=1.0, recon=0.0, sw=0.0, cls=0.0)
+    raise ValueError(f"unknown loss {kind!r}")
+
+
 @torch.no_grad()
 def teacher_embeddings(model, truth: torch.Tensor) -> torch.Tensor:
     """Frozen-teacher embeddings of the target cells: the base model with adapters off,

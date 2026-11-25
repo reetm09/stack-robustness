@@ -35,7 +35,7 @@ the only use of the validation doubles' cells; the test run never loads the test
 import argparse
 import json
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import anndata as ad
@@ -49,8 +49,11 @@ from stack_ttt.adapt import AdaptConfig, adapt, task_losses
 from stack_ttt.lora import adapter_state, adapters_disabled, inject_lora, load_adapter_state, stack_targets
 from stack_ttt.model import load_stack
 from stack_ttt.norman import load_norman
+from stack_ttt.objective import loss_weights
 from stack_ttt.predict import predict_double
-from stack_ttt.tasks import CONTROL, cell_pools, neighbours, norman_tasks, random_tasks, shared_tasks
+from stack_ttt.retrieval import effect_embeddings
+from stack_ttt.tasks import (CONTROL, cell_pools, knn_neighbours, knn_tasks, neighbours, norman_tasks,
+                             random_tasks, shared_tasks)
 
 ROOT = Path(__file__).resolve().parents[2]
 ARMS = ["icl", "shared", "ttt", "ttt_random", "shared_ttt", "shared_ttt_random"]
@@ -106,6 +109,12 @@ def main() -> None:
     parser.add_argument("--no-aliases", action="store_true", help="match genes by symbol only, as Arc's code does")
     parser.add_argument("--hgnc", type=Path, default=ROOT / "data/raw/hgnc/hgnc_complete_set.txt")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--ttt-loss", default="full", choices=["full", "ed"],
+                        help="loss of the TTT arms: STACK's fine-tuning loss (registered) or its energy "
+                             "distance alone (exploratory; the shared adapter keeps the full loss)")
+    parser.add_argument("--neighbours", default="genes", choices=["genes", "knn"],
+                        help="H(g*) of ttt and shared_ttt: training doubles sharing a gene (registered) or as "
+                             "many nearest in frozen STACK's embedding space (exploratory)")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -150,6 +159,21 @@ def main() -> None:
     model, _ = load_stack(args.checkpoint, device=device)
     inject_lora(model, stack_targets(model, args.scope), rank=args.rank, alpha=args.alpha)
     cls_frozen = {k: v.clone() for k, v in model.cls.state_dict().items()}
+
+    embedding = None
+    if args.neighbours == "knn":
+        tic = time.time()
+        embedding = effect_embeddings(model, cells, pools, singles, device=device, seed=args.seed)
+        chosen = {}
+        for d in doubles:
+            genes = neighbours(d, train_doubles)
+            knn = knn_neighbours(d, train_doubles, embedding, k=len(genes))
+            chosen[d] = {"genes": genes, "knn": knn, "overlap": len(set(genes) & set(knn))}
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "knn.json").write_text(json.dumps(chosen, indent=1))
+        log(f"embedded {len(singles)} singles in {time.time() - tic:.0f}s; nearest doubles overlap the "
+            f"gene-sharing ones in {sum(c['overlap'] for c in chosen.values())} of "
+            f"{sum(len(c['genes']) for c in chosen.values())}")
 
     def config(steps, lr):
         return AdaptConfig(steps=steps, lr=lr, weight_decay=args.weight_decay, schedule=args.schedule,
@@ -229,13 +253,18 @@ def main() -> None:
                 continue
             if arm.endswith("random"):
                 tasks = random_tasks(double, train_doubles, seed=args.seed, null=null)
+            elif embedding is not None:
+                tasks = knn_tasks(double, train_doubles, embedding, null=null)
             else:
                 tasks = norman_tasks(double, train_doubles, null=null)
             assert not {t.target for t in tasks} & set(held_out), "held-out doubles must never be trained on"
             start = shared if arm.startswith("shared") else None
             steps_lr = per_arm.get(arm, (args.ttt_steps, args.ttt_lr))
             info.setdefault("ttt_settings", {})[arm] = {"steps": steps_lr[0], "lr": steps_lr[1]}
-            result = adapt(model, cells, tasks, pools, config(*steps_lr),
+            ttt_config = config(*steps_lr)
+            if args.ttt_loss != "full":
+                ttt_config = replace(ttt_config, weights=loss_weights(args.ttt_loss))
+            result = adapt(model, cells, tasks, pools, ttt_config,
                            cls_base=cls_shared if start is not None else cls_frozen, device=device,
                            adapter_init=start)
             info["seconds"][f"{arm}_adapt"] = result["seconds"]

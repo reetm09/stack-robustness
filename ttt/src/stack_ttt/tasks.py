@@ -54,6 +54,31 @@ def random_tasks(double: str, train_doubles, seed: int, null: bool = False) -> l
     return _instance_tasks(double, chosen, null)
 
 
+def knn_neighbours(double: str, train_doubles, embedding: dict, k: int) -> list:
+    """The k training doubles nearest `double`, most similar first, by the cosine similarity of
+    summed single-gene effect embeddings, e(a+b) = e(a) + e(b) (retrieval.effect_embeddings).
+    Only the singles' embeddings are used, so the held-out double's own cells never enter."""
+    def vector(d: str) -> np.ndarray:
+        a, b = d.split("+")
+        return np.asarray(embedding[a], dtype=float) + np.asarray(embedding[b], dtype=float)
+
+    target = vector(double)
+
+    def cosine(d: str) -> float:
+        v = vector(d)
+        return float(v @ target / max(np.linalg.norm(v) * np.linalg.norm(target), 1e-12))
+
+    return sorted(train_doubles, key=lambda d: (-cosine(d), d))[:k]
+
+
+def knn_tasks(double: str, train_doubles, embedding: dict, null: bool = False) -> list:
+    """norman_tasks with the neighbours swapped for as many training doubles nearest `double` in
+    frozen STACK's embedding space (knn_neighbours): the selection the team's paper draft
+    describes, an exploratory variant. Task counts match the neighbour arm's."""
+    k = len(neighbours(double, train_doubles))
+    return _instance_tasks(double, sorted(knn_neighbours(double, train_doubles, embedding, k)), null)
+
+
 def _both_orders(double: str) -> list:
     a, b = double.split("+")
     return [Task(a, b, double), Task(b, a, double)]
