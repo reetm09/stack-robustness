@@ -1,0 +1,299 @@
+{
+  "seed0": {
+    "test": {
+      "seed": 0,
+      "held_genes": [
+        "FOXA3",
+        "FOXL2",
+        "IER5L",
+        "PLK4",
+        "POU3F2",
+        "PRDM1",
+        "RUNX1T1",
+        "STIL",
+        "TMSB4X",
+        "UBASH3A",
+        "UBASH3B"
+      ],
+      "also_unseen": [
+        "C3orf72",
+        "CBFA2T3",
+        "MEIS1",
+        "ZNF318"
+      ],
+      "tries": 2,
+      "counts": {
+        "seen 2/2": 14,
+        "unseen 1/2": 22,
+        "unseen 2/2": 9
+      },
+      "n_train_doubles": 86
+    },
+    "val": {
+      "seed": 10000,
+      "held_genes": [
+        "AHR",
+        "C19orf26",
+        "CDKN1B",
+        "DUSP9",
+        "KIF18B",
+        "KLF1",
+        "PRTG",
+        "RHOXF2",
+        "SET"
+      ],
+      "also_unseen": [
+        "CLDN6",
+        "COL2A1",
+        "HOXC13",
+        "IRF1",
+        "KIF2C",
+        "SLC38A2",
+        "ZC3HAV1"
+      ],
+      "tries": 7,
+      "counts": {
+        "seen 2/2": 5,
+        "unseen 1/2": 19,
+        "unseen 2/2": 9
+      },
+      "n_train_doubles": 53
+    }
+  },
+  "seed1": {
+    "test": {
+      "seed": 1,
+      "held_genes": [
+        "BPGM",
+        "C19orf26",
+        "CDKN1B",
+        "CEBPE",
+        "KIF18B",
+        "MAP2K3",
+        "PLK4",
+        "RHOXF2",
+        "S1PR2",
+        "SAMD1",
+        "TBX2"
+      ],
+      "also_unseen": [
+        "HOXC13",
+        "KIF2C",
+        "RUNX1T1",
+        "SLC38A2",
+        "STIL",
+        "ZBTB1"
+      ],
+      "tries": 3,
+      "counts": {
+        "seen 2/2": 14,
+        "unseen 1/2": 25,
+        "unseen 2/2": 7
+      },
+      "n_train_doubles": 85
+    },
+    "val": {
+      "seed": 10001,
+      "held_genes": [
+        "BAK1",
+        "C3orf72",
+        "FOXL2",
+        "MAPK1",
+        "MEIS1",
+        "POU3F2",
+        "TGFBR2",
+        "TMSB4X"
+      ],
+      "also_unseen": [
+        "BCL2L11",
+        "ISL2",
+        "JUN",
+        "ZNF318"
+      ],
+      "tries": 5,
+      "counts": {
+        "seen 2/2": 7,
+        "unseen 1/2": 17,
+        "unseen 2/2": 8
+      },
+      "n_train_doubles": 53
+    }
+  },
+  "seed2": {
+    "test": {
+      "seed": 2,
+      "held_genes": [
+        "BCL2L11",
+        "BPGM",
+        "CBFA2T3",
+        "CEBPE",
+        "COL2A1",
+        "ELMSAN1",
+        "IRF1",
+        "ISL2",
+        "KIF2C",
+        "MAP2K6",
+        "PRTG"
+      ],
+      "also_unseen": [
+        "CDKN1A",
+        "KIF18B",
+        "LHX1",
+        "MEIS1",
+        "PRDM1",
+        "RUNX1T1",
+        "SPI1",
+        "ZBTB1"
+      ],
+      "tries": 3,
+      "counts": {
+        "seen 2/2": 10,
+        "unseen 1/2": 31,
+        "unseen 2/2": 8
+      },
+      "n_train_doubles": 82
+    },
+    "val": {
+      "seed": 10002,
+      "held_genes": [
+        "AHR",
+        "BAK1",
+        "DUSP9",
+        "HOXC13",
+        "MAP2K3",
+        "MAPK1",
+        "STIL",
+        "ZC3HAV1"
+      ],
+      "also_unseen": [
+        "PLK4",
+        "SLC38A2",
+        "TMSB4X",
+        "ZNF318"
+      ],
+      "tries": 1,
+      "counts": {
+        "seen 2/2": 9,
+        "unseen 1/2": 14,
+        "unseen 2/2": 5
+      },
+      "n_train_doubles": 54
+    }
+  },
+  "seed3": {
+    "test": {
+      "seed": 3,
+      "held_genes": [
+        "BCL2L11",
+        "CEBPE",
+        "COL2A1",
+        "DUSP9",
+        "IRF1",
+        "ISL2",
+        "LHX1",
+        "MAPK1",
+        "S1PR2",
+        "SGK1",
+        "ZC3HAV1"
+      ],
+      "also_unseen": [
+        "C19orf26",
+        "HOXC13",
+        "IER5L",
+        "RUNX1T1",
+        "SPI1"
+      ],
+      "tries": 2,
+      "counts": {
+        "seen 2/2": 11,
+        "unseen 1/2": 32,
+        "unseen 2/2": 6
+      },
+      "n_train_doubles": 82
+    },
+    "val": {
+      "seed": 10003,
+      "held_genes": [
+        "C3orf72",
+        "CDKN1A",
+        "FOSB",
+        "MAP7D1",
+        "PTPN9",
+        "SNAI1",
+        "TBX2",
+        "UBASH3A",
+        "UBASH3B"
+      ],
+      "also_unseen": [
+        "CDKN1B",
+        "CDKN1C",
+        "TBX3"
+      ],
+      "tries": 3,
+      "counts": {
+        "seen 2/2": 8,
+        "unseen 1/2": 16,
+        "unseen 2/2": 7
+      },
+      "n_train_doubles": 51
+    }
+  },
+  "seed4": {
+    "test": {
+      "seed": 4,
+      "held_genes": [
+        "C3orf72",
+        "ETS2",
+        "IRF1",
+        "ISL2",
+        "MAPK1",
+        "OSR2",
+        "SGK1",
+        "SPI1",
+        "TBX3",
+        "UBASH3A",
+        "ZBTB1"
+      ],
+      "also_unseen": [
+        "LHX1",
+        "S1PR2",
+        "TBX2"
+      ],
+      "tries": 1,
+      "counts": {
+        "seen 2/2": 13,
+        "unseen 1/2": 31,
+        "unseen 2/2": 5
+      },
+      "n_train_doubles": 82
+    },
+    "val": {
+      "seed": 10004,
+      "held_genes": [
+        "CLDN6",
+        "FOSB",
+        "FOXA3",
+        "FOXL2",
+        "MAP2K6",
+        "PTPN9",
+        "SLC38A2",
+        "STIL",
+        "TMSB4X"
+      ],
+      "also_unseen": [
+        "HOXB9",
+        "IKZF3",
+        "MEIS1",
+        "PLK4",
+        "ZNF318"
+      ],
+      "tries": 10,
+      "counts": {
+        "seen 2/2": 8,
+        "unseen 1/2": 17,
+        "unseen 2/2": 7
+      },
+      "n_train_doubles": 50
+    }
+  }
+}

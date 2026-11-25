@@ -184,7 +184,7 @@ scores are kept as well.
 | 2.6b | Second scoring mode, truth from all cells: `contexts.py`, `build_contexts.py`, both modes in `make_table.py`, tests; checked on S-shared | data, CPU | done |
 | 2.6d | Additivity ruler (`additivity.py` + tests; notebook Part B / Q2 / Q6 on scoring genes) | data, CPU | done |
 | 2.6e | Cutoff agreed: top 25% of the plain-sum score = non-additive; same cut splits buffering/synergy vs interaction → 98 / 23 / 10 (`splits/compositional/additivity_groups.csv`); groups wired into `make_table.py` | data, CPU | done |
-| 2.7 | Generate split files: `splits/compositional/` (S-all folds, S-gene seeds, non-additive flags) + tests | data, CPU | |
+| 2.7 | Generate split files: `splits/compositional/` (S-all folds, S-gene seeds, non-additive flags) + tests | data, CPU | done |
 | 3 | `combine.py` (additive, weighted, symmetric, residual, ridge, kNN, PCA-linear) + tests | no | |
 | 4 | `behavior.py` + tests | no | |
 | 5 | Scoring contexts per split; CPU baselines → first table rows | data, CPU | |

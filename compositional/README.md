@@ -34,13 +34,21 @@ This folder depends on it by path. `../ttt/` (Study 4) is not imported or run.
 ```
 compositional/
   PLAN.md               plan, design decisions, step status
+  SPLITS.md             which pairs are hidden in each experiment, and why
   EVALUATION.md         auto-generated results tables (do not edit by hand)
   tables/composition_results.tex   auto-generated LaTeX table (\input in the paper)
   src/stack_compositional/
     report.py           scores.csv -> summary tables (Markdown + LaTeX)
+    contexts.py         load Norman; build the halves / all-cells scoring contexts
+    additivity.py       additive / buffering-synergy / interaction labels (no model)
+    splits.py           S-all folds and S-gene held-out-gene splits
   scripts/
     make_table.py       rebuild EVALUATION.md and the LaTeX table
-  tests/                unit tests on synthetic data
+    build_contexts.py   scoring contexts + CPU baselines for one split
+    make_additivity_groups.py  -> ../splits/compositional/additivity_groups.csv
+    make_splits.py      -> ../splits/compositional/s_all_folds.csv, s_gene_seed*.csv
+    make_explore.py     -> explore.ipynb
+  tests/                unit tests (synthetic) + leakage checks on the saved split files
 ```
 
 Coming in later steps (see PLAN.md): `combine.py` (additive, weighted, symmetric, residual,

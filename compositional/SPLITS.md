@@ -1,6 +1,7 @@
 # Experiment 2 — how the data is split for each question
 
-Status: **design only, under review.** No split files have been generated yet (step 2.7 in PLAN.md).
+Status: **files written (step 2.7).** `python compositional/scripts/make_splits.py` (from the repo root)
+recreates them exactly; `tests/test_splits.py` checks the leakage rules on the saved files.
 
 ## In short
 
@@ -55,7 +56,9 @@ combine them, not to guess an unmeasured gene.
   pair helps choose its own weights.
 - **Cells:** the prompt (A singles) and query (B singles) are disjoint from the target (A+B first
   half). Frozen STACK sees no double-perturbation cells at all.
-- **Output:** `splits/compositional/s_all_folds.csv` (double, fold).
+- **Folds are balanced by additivity group** (each fold has 19–20 additive, 4–5 buffering/synergy and 2
+  interaction pairs), so no fold's weights are fitted without non-additive pairs.
+- **Output:** `splits/compositional/s_all_folds.csv` (condition, fold, group); fold sizes 27/26/26/26/26.
 
 ### S-gene — held-out genes, 5 seeds (Q4 fine-tuning, Q5 order consistency)
 For each seed:
@@ -74,7 +77,32 @@ For each seed:
    passes) and record the seed.
 
 Results are reported per category, with the median over seeds and a paired bootstrap CI.
-**Output:** `splits/compositional/s_gene_seed{0..4}.csv` (condition, kind, split, category).
+
+**Category is counted from the final training pairs, not from the draw.** A gene outside G can
+also end up unseen, when its only pairs were among the random 15% (e.g. MEIS1 in seed 0). Those
+pairs are labelled 1/2 or 0/2 accordingly, and the extra genes are listed as `also_unseen` in the
+metadata.
+
+**Output** (team format, so `build_contexts.py --conditions … --held test|val` works directly):
+- `splits/compositional/s_gene_seed{k}_conditions.csv`: condition, kind, split (train / test),
+  category. Train includes the validation pairs, for the final run after settings are fixed.
+- `splits/compositional/s_gene_seed{k}_val_conditions.csv`: split = train / val; test pairs are
+  left out entirely (as in the team's `norman2019_val_conditions.csv`).
+- `splits/compositional/s_gene_meta.json`: per seed, the held genes, `also_unseen`, tries and counts.
+
+**What came out** (test pairs per category; training doubles; validation pairs):
+
+| seed | held-out genes G | seen 2/2 | unseen 1/2 | unseen 2/2 | train doubles | val (2/2 · 1/2 · 0/2) |
+|---|---|---|---|---|---|---|
+| 0 | FOXA3, FOXL2, IER5L, PLK4, POU3F2, PRDM1, RUNX1T1, STIL, TMSB4X, UBASH3A, UBASH3B | 14 | 22 | 9 | 86 | 5 · 19 · 9 |
+| 1 | BPGM, C19orf26, CDKN1B, CEBPE, KIF18B, MAP2K3, PLK4, RHOXF2, S1PR2, SAMD1, TBX2 | 14 | 25 | 7 | 85 | 7 · 17 · 8 |
+| 2 | BCL2L11, BPGM, CBFA2T3, CEBPE, COL2A1, ELMSAN1, IRF1, ISL2, KIF2C, MAP2K6, PRTG | 10 | 31 | 8 | 82 | 9 · 14 · 5 |
+| 3 | BCL2L11, CEBPE, COL2A1, DUSP9, IRF1, ISL2, LHX1, MAPK1, S1PR2, SGK1, ZC3HAV1 | 11 | 32 | 6 | 82 | 8 · 16 · 7 |
+| 4 | C3orf72, ETS2, IRF1, ISL2, MAPK1, OSR2, SGK1, SPI1, TBX3, UBASH3A, ZBTB1 | 13 | 31 | 5 | 82 | 8 · 17 · 7 |
+
+Every seed passed within 1–3 draws; validation within 1–10. Non-additive test pairs per seed: 10, 14,
+19, 17, 11, mostly in "unseen 1/2". Interaction pairs are 0–1 per category outside "unseen 1/2", too
+few to report per category, so the interaction table pools categories.
 
 ### S-order — order shortcut check (optional, Q3/Q5)
 - Fine-tune STACK only on order A→B (alphabetically first gene as the prompt).
