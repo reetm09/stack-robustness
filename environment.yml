@@ -1,0 +1,29 @@
+# Conda environment for the shared scoring code, Study 4 (ttt/) and the robustness/TabPFN study.
+# Create it with `bash scripts/setup_env.sh`, which also points the Hugging Face cache at
+# .cache/huggingface/ and downloads the TabPFN-3.5 and STACK checkpoints.
+#
+# Conda supplies Python only; everything else comes from pip.
+# torch: PyPI's default 2.15.0 (+cu132) segfaults on CUDA init under WSL2 here (RTX 5060, driver
+# 596.08), while 2.14.0+cu130 works, so that build is pinned. On the cluster (driver CUDA 12.2)
+# use torch==2.14.1 from https://download.pytorch.org/whl/cu126 instead.
+name: stack-robustness
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu130
+      - torch==2.14.0
+      - -e .        # stack_robustness: shared scoring
+      - -e ./ttt    # stack_ttt: STACK loading, adapters, prediction (pulls arc-stack==0.1.3, torch)
+      - -e ./robustness  # stack_quality: Study 3 robustness benchmark
+      - tabulate
+      - nbformat
+      - nbclient
+      - tabpfn>=10.2  # TabPFN-3.5 (ModelVersion.V3_5)
+      - huggingface_hub
+      - python-dotenv
+      - pyarrow
+      - ipykernel
+      - pytest>=8
