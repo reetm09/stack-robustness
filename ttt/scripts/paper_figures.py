@@ -49,9 +49,26 @@ def wmse_table(run: Path) -> pd.DataFrame:
     return w.rename(columns=lambda c: c.removesuffix("_T1_diff"))
 
 
+def pair_logs(run: Path) -> tuple:
+    """Per test pair: the number of neighbouring training pairs TTT trained on, and the
+    median wall-clock seconds of each step (adaptation and T = 1 generation) over pairs."""
+    neighbours, seconds = {}, {}
+    for f in sorted((run / "pairs").glob("*.json")):
+        info = json.loads(f.read_text())
+        neighbours[f.stem] = len(info["tasks"]["shared_ttt"])
+        for key, value in info["seconds"].items():
+            seconds.setdefault(key, []).append(value)
+    return pd.Series(neighbours), {k: float(np.median(v)) for k, v in seconds.items()}
+
+
+def seconds_per_pair(arm: str, med: dict) -> float:
+    return med.get(f"{arm}_adapt", 0.0) + med[f"{arm}_T1"]
+
+
 def main_figure(out: Path) -> None:
     w = wmse_table(TEST)
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.5, 2.2), gridspec_kw={"width_ratios": [1.1, 1]})
+    neighbours, med = pair_logs(TEST)
+    fig, ((ax, cx), (bx, dx)) = plt.subplots(2, 2, figsize=(5.5, 4.3), gridspec_kw={"width_ratios": [1.1, 1]})
 
     for i, (a, b, label) in enumerate(ROWS):
         s = paired_summary(w[b] - w[a], n_boot=10000, seed=0)
@@ -70,16 +87,50 @@ def main_figure(out: Path) -> None:
     ax.set_title("(a) Paired differences (26 test pairs)", loc="left")
 
     gain = (w["shared"] - w["shared_ttt"]) * SCALE
+    dots = dict(s=11, color="#1f77b4", edgecolor="white", linewidth=0.4, zorder=3)
+
+    n = neighbours.reindex(gain.index)
+    rho, p = spearmanr(gain, n)
+    cx.axhline(0, color="0.2", lw=0.6, ls=":")
+    cx.set_ylim(-3, 15)  # leaves room above the highest point for the label
+    cx.scatter(n, gain, **dots)
+    cx.set_xlabel("Neighbouring training pairs")
+    cx.set_ylabel(r"TTT gain ($\times 10^{-3}$)")
+    cx.set_title("(b) Gain vs examples", loc="left")
+    cx.text(0.03, 0.95, f"Spearman $\\rho$ = {rho:.2f} (p = {p:.2f})", transform=cx.transAxes, va="top", fontsize=6.5,
+            bbox=dict(facecolor="white", edgecolor="none", pad=1))
+
     rho, p = spearmanr(gain, w["additive"])
     bx.axhline(0, color="0.2", lw=0.6, ls=":")
-    bx.scatter(w["additive"], gain, s=11, color="#1f77b4", edgecolor="white", linewidth=0.4, zorder=3)
+    bx.set_ylim(-3, 15)  # leaves room above the highest point for the label
+    bx.scatter(w["additive"], gain, **dots)
     bx.set_xscale("log")
     bx.set_xlabel("Additive baseline wMSE (log scale)")
     bx.set_ylabel(r"TTT gain ($\times 10^{-3}$)")
-    bx.set_title("(b) TTT gain vs additive error", loc="left")
-    bx.text(0.03, 0.95, f"Spearman $\\rho$ = {rho:.2f} (p = {p:.2f})", transform=bx.transAxes, va="top", fontsize=6.5)
+    bx.set_title("(c) Gain vs additive error", loc="left")
+    bx.text(0.03, 0.95, f"Spearman $\\rho$ = {rho:.2f} (p = {p:.2f})", transform=bx.transAxes, va="top", fontsize=6.5,
+            bbox=dict(facecolor="white", edgecolor="none", pad=1))
 
-    fig.subplots_adjust(left=0.235, right=0.985, bottom=0.19, top=0.88, wspace=0.55)
+    points = [("icl", "Frozen"), ("ttt_random", "Frozen + TTT, random"), ("ttt", "Frozen + TTT"),
+              ("shared", "Shared"), ("shared_ttt_random", "Shared + TTT, random"), ("shared_ttt", "Shared + TTT")]
+    for arm, label in points:
+        x, y = seconds_per_pair(arm, med), w[arm].median() * SCALE
+        key = arm == "shared_ttt"
+        dx.plot(x, y, "o", ms=4, color="#1f77b4" if key else "0.45")
+        right = x < 50
+        dx.annotate(label, (x, y), textcoords="offset points", xytext=(5 if right else -5, 0),
+                    ha="left" if right else "right", va="center",
+                    fontsize=5.8, color="#1f77b4" if key else "0.3")
+    for ref, label in (("additive", "Additive"), ("query", "Query unchanged")):
+        y = w[ref].median() * SCALE
+        dx.plot(0, y, "s", ms=3.5, color="0.15")
+        dx.annotate(label, (0, y), textcoords="offset points", xytext=(5, 0), ha="left", va="center", fontsize=5.8)
+    dx.set_xlim(-8, 112)
+    dx.set_xlabel("Seconds per test pair")
+    dx.set_ylabel(r"Median wMSE ($\times 10^{-3}$)")
+    dx.set_title("(d) Error vs cost", loc="left")
+
+    fig.subplots_adjust(left=0.235, right=0.97, bottom=0.1, top=0.95, wspace=0.6, hspace=0.55)
     fig.savefig(out / "ttt.pdf")
     plt.close(fig)
 
